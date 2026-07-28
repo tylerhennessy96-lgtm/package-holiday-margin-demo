@@ -626,6 +626,7 @@
     .mx-ppt.mx-flat { color: var(--text-muted); font-weight: 500; }
     tr.mx-base td { color: var(--text-secondary); font-weight: 600; }
     tr.mx-total td { border-top: 1.5px solid var(--border-mid); font-weight: 700; padding-top: 8px; }
+    .mx-sub { font-size: 10.5px; color: var(--text-muted); margin: -4px 0 10px; }
     .mx-note { font-size: 10.5px; color: var(--text-muted); line-height: 1.5; margin-top: 10px; }
 
     /* Sup — read-only view of margin already committed on top of the baseline */
@@ -3432,30 +3433,51 @@
     return den ? Math.round((num / den) * 10) / 10 : 0;
   }
 
-  // Average the matrix, factor by factor, across a set of leaves — so a
-  // destination or region shows the same breakdown shape as one product.
+  // Break the matrix down across a set of leaves, so a destination or region
+  // shows the same shape of calculation as a single product.
+  //
+  // Two things matter for the numbers to be trustworthy:
+  //  1. Factor contributions are weighted by BOOKINGS, not a flat average —
+  //     a departure selling 400 seats should move the blend more than one
+  //     selling 4.
+  //  2. The total is the SAME figure the recommendation panel and the table
+  //     use (aggregate().recMarginPct), which is recomputed from summed
+  //     recommended revenue over summed cost. Guardrail clamping and that
+  //     revenue weighting mean base + factors will not always land exactly on
+  //     it, so any residual is shown explicitly rather than left as an
+  //     unexplained gap between the two panels.
   function matrixBreakdown(leaves) {
     if (!leaves.length) return null;
+    const weights = leaves.map(l => Math.max(1, l.sold));
+    const totalW = weights.reduce((s, w) => s + w, 0);
     const first = leafMatrix(leaves[0]);
+
     const lines = first.lines.map((l, i) => {
       let ppt = 0;
       const bands = {};
-      leaves.forEach(lf => {
+      leaves.forEach((lf, li) => {
         const m = leafMatrix(lf);
-        ppt += m.lines[i].ppt;
-        bands[m.lines[i].band] = (bands[m.lines[i].band] || 0) + 1;
+        ppt += m.lines[i].ppt * weights[li];
+        bands[m.lines[i].band] = (bands[m.lines[i].band] || 0) + weights[li];
       });
       const top = Object.keys(bands).sort((a, b) => bands[b] - bands[a])[0];
-      const mixed = Object.keys(bands).length > 1;
       return {
         label: l.label,
-        band: mixed ? top + ' (mostly)' : top,
-        ppt: Math.round((ppt / leaves.length) * 100) / 100,
+        band: Object.keys(bands).length > 1 ? top + ' (mostly)' : top,
+        ppt: Math.round((ppt / totalW) * 100) / 100,
       };
     });
-    let target = 0, base = 0;
-    leaves.forEach(lf => { const m = leafMatrix(lf); target += m.target; base = m.base; });
-    return { base, lines, target: Math.round((target / leaves.length) * 10) / 10 };
+
+    const base = first.base;
+    const target = Math.round(aggregate(leaves).recMarginPct * 10) / 10;
+    // Reconcile against the values as DISPLAYED (1dp), not the raw ones, so
+    // the column a reader adds up on screen actually lands on the target.
+    lines.forEach(l => { l.ppt = Math.round(l.ppt * 10) / 10; });
+    const residual = Math.round((target - (base + lines.reduce((s, l) => s + l.ppt, 0))) * 10) / 10;
+    if (Math.abs(residual) >= 0.05) {
+      lines.push({ label: 'Guardrails & booking mix', band: 'reconciliation', ppt: residual });
+    }
+    return { base, lines, target };
   }
 
   // The matrix target for a leaf, cached — it is read many times per render.
@@ -4923,6 +4945,7 @@
     const breakdownHtml = bd ? (
       '<div class="lm-panel">' +
         '<div class="lm-panel-title">How the target margin is built</div>' +
+        '<div class="mx-sub">Weighted by bookings across the departures in scope</div>' +
         '<table class="mx-table">' +
           '<tbody>' +
             '<tr class="mx-base"><td>Base margin</td><td class="mx-band"></td><td class="mx-ppt">' + bd.base.toFixed(1) + '%</td></tr>' +
@@ -4940,7 +4963,7 @@
     let recPanelHtml =
       '<div class="lm-panel">' +
         '<div class="lm-panel-title">Margin recommendation</div>' + stateTag +
-        '<div class="lm-rec-row"><span class="label">Package margin</span><span class="value">' + agg.marginPct.toFixed(1) + '%</span></div>' +
+        '<div class="lm-rec-row"><span class="label">Current margin</span><span class="value">' + agg.marginPct.toFixed(1) + '%</span></div>' +
         (function(){
           const sup = scopeAvg(productsForScopeId(level === 'product' ? 'product:' + park.id + '|' + gw.id
                      : level === 'dest' ? 'dest:' + park.id : 'region:' + region.id),
