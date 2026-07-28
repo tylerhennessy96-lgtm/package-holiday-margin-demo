@@ -4467,40 +4467,44 @@
   // ── SVG charts (inline) ──
   function demandPaceSvg(actual, benchmark) {
     const W = 520, H = 200;
-    const padL = 36, padR = 12, padT = 14, padB = 26;
+    const padL = 44, padR = 12, padT = 14, padB = 26;
     const innerW = W - padL - padR;
     const innerH = H - padT - padB;
     const N = actual.length;
-    const maxY = Math.max(...actual, ...benchmark, 1);
+    const all = actual.concat(benchmark);
+    const sc = niceScale(Math.min(...all), Math.max(...all));
+    const span = sc.max - sc.min;
 
     const xAt = i => padL + (innerW * i) / (N - 1);
-    const yAt = v => padT + innerH * (1 - v / maxY);
+    const yAt = v => padT + innerH * (1 - (v - sc.min) / span);
     const buildPath = arr => arr.map((v, i) => (i === 0 ? 'M' : 'L') + xAt(i) + ',' + yAt(v)).join(' ');
 
-    // Y-axis tick lines
     const ticks = 4;
     const tickLines = Array.from({ length: ticks + 1 }, (_, i) => {
       const y = padT + (innerH * i) / ticks;
-      const v = Math.round(maxY * (1 - i / ticks));
+      const v = sc.max - (span * i) / ticks;
       return '<line x1="' + padL + '" y1="' + y + '" x2="' + (W - padR) + '" y2="' + y + '" stroke="#eef0f5" stroke-width="1"/>' +
-             '<text x="' + (padL - 6) + '" y="' + (y + 3) + '" font-size="9" fill="#9ca3af" text-anchor="end" font-family="Inter">' + v.toLocaleString('en-GB') + '</text>';
+             '<text x="' + (padL - 6) + '" y="' + (y + 3) + '" font-size="9" fill="#9ca3af" text-anchor="end" font-family="Inter">' + axisLabel(v, span) + '</text>';
     }).join('');
 
-    // X-axis day labels (every 2 days)
     const xLabels = Array.from({ length: N }, (_, i) => {
       if (i % 3 !== 0 && i !== N - 1) return '';
-      const x = xAt(i);
       const label = i === N - 1 ? 'today' : 'T−' + (N - 1 - i);
-      return '<text x="' + x + '" y="' + (H - 8) + '" font-size="9" fill="#9ca3af" text-anchor="middle" font-family="Inter">' + label + '</text>';
+      return '<text x="' + xAt(i) + '" y="' + (H - 8) + '" font-size="9" fill="#9ca3af" text-anchor="middle" font-family="Inter">' + label + '</text>';
     }).join('');
+
+    const zeroNote = sc.min > 0
+      ? '<text x="' + padL + '" y="' + (padT - 4) + '" font-size="8" fill="#c3c8d1" font-family="Inter">axis starts at ' + axisLabel(sc.min, span) + '</text>'
+      : '';
 
     return (
       '<svg class="chart-demand" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" ' +
-        'data-w="' + W + '" data-h="' + H + '" data-padl="' + padL + '" data-padr="' + padR + '" data-padt="' + padT + '" data-padb="' + padB + '" data-maxy="' + maxY + '">' +
+        'data-w="' + W + '" data-h="' + H + '" data-padl="' + padL + '" data-padr="' + padR + '" data-padt="' + padT + '" data-padb="' + padB +
+        '" data-ymin="' + sc.min + '" data-ymax="' + sc.max + '">' +
         tickLines +
         '<path d="' + buildPath(benchmark) + '" stroke="#9ca3af" stroke-width="1.5" stroke-dasharray="3 3" fill="none"/>' +
         '<path d="' + buildPath(actual)    + '" stroke="#e8007d" stroke-width="2"   fill="none"/>' +
-        xLabels +
+        xLabels + zeroNote +
         '<line class="chart-guide" x1="0" y1="' + padT + '" x2="0" y2="' + (H - padB) + '" stroke="rgba(232,0,125,0.5)" stroke-width="1" style="display:none"/>' +
         '<g class="chart-markers" style="display:none">' +
           '<circle r="4" fill="#9ca3af" stroke="#fff" stroke-width="1.5"/>' +
@@ -4510,37 +4514,56 @@
     );
   }
 
+  // Shared axis helper: fit the domain to the data instead of anchoring at
+  // zero. Conversion sits in a narrow band (~4-5%), so a zero-based axis
+  // flattens every bar into an identical slab and hides the story.
+  function niceScale(lo, hi) {
+    if (!isFinite(lo) || !isFinite(hi)) return { min: 0, max: 1 };
+    if (hi - lo < 1e-9) { lo -= Math.abs(lo || 1) * 0.1; hi += Math.abs(hi || 1) * 0.1; }
+    const pad = Math.max((hi - lo) * 0.28, hi * 0.01);
+    return { min: Math.max(0, lo - pad), max: hi + pad };
+  }
+  // Tick labels: enough precision to distinguish a narrow band.
+  function axisLabel(v, span) {
+    if (span >= 1000) return Math.round(v).toLocaleString('en-GB');
+    if (span >= 20)   return String(Math.round(v));
+    if (span >= 2)    return v.toFixed(1);
+    return v.toFixed(2);
+  }
+
   function hourlyBarsSvg(values, labels, benchmarks) {
     const W = 520, H = 160;
-    const padL = 36, padR = 12, padT = 14, padB = 30;
+    const padL = 40, padR = 12, padT = 14, padB = 30;
     const innerW = W - padL - padR;
     const innerH = H - padT - padB;
     const N = values.length;
-    // Include benchmark in maxV so a tick above the bar stays inside the chart area.
-    const maxV = Math.max(...values, ...(benchmarks || []), 1);
+    const all = values.concat(benchmarks && benchmarks.length === N ? benchmarks : []);
+    const sc = niceScale(Math.min(...all), Math.max(...all));
+    const span = sc.max - sc.min;
+    const yAt = v => padT + innerH * (1 - (v - sc.min) / span);
+    const baseY = padT + innerH;
     const gap = 8;
     const bw = (innerW - gap * (N - 1)) / N;
 
     const ticks = 4;
     const tickLines = Array.from({ length: ticks + 1 }, (_, i) => {
       const y = padT + (innerH * i) / ticks;
-      const v = Math.round(maxV * (1 - i / ticks));
+      const v = sc.max - (span * i) / ticks;
       return '<line x1="' + padL + '" y1="' + y + '" x2="' + (W - padR) + '" y2="' + y + '" stroke="#eef0f5" stroke-width="1"/>' +
-             '<text x="' + (padL - 6) + '" y="' + (y + 3) + '" font-size="9" fill="#9ca3af" text-anchor="end" font-family="Inter">' + v + '</text>';
+             '<text x="' + (padL - 6) + '" y="' + (y + 3) + '" font-size="9" fill="#9ca3af" text-anchor="end" font-family="Inter">' + axisLabel(v, span) + '</text>';
     }).join('');
 
     const bars = values.map((v, i) => {
       const x = padL + i * (bw + gap);
-      const h = innerH * (v / maxV);
-      const y = padT + innerH - h;
+      const y = yAt(v);
+      const h = Math.max(1, baseY - y);
       let benchTick = '';
       if (benchmarks && benchmarks.length === N) {
         const b = benchmarks[i];
-        const benchY = padT + innerH * (1 - b / maxV);
-        const tx1 = x - 3, tx2 = x + bw + 3;
+        const benchY = yAt(b);
         const tickColor = b <= v ? '#2563eb' : '#dc2626';   // blue = beat benchmark; red = fell short
-        benchTick = '<line class="bench-tick" data-i="' + i + '" x1="' + tx1 + '" y1="' + benchY +
-          '" x2="' + tx2 + '" y2="' + benchY + '" stroke="' + tickColor +
+        benchTick = '<line class="bench-tick" data-i="' + i + '" x1="' + (x - 3) + '" y1="' + benchY +
+          '" x2="' + (x + bw + 3) + '" y2="' + benchY + '" stroke="' + tickColor +
           '" stroke-width="2" stroke-linecap="round"/>';
       }
       return '<rect class="bar" data-i="' + i + '" x="' + x + '" y="' + y + '" width="' + bw + '" height="' + h + '" rx="2" fill="#e8007d" fill-opacity="0.85"/>' +
@@ -4549,10 +4572,15 @@
              '<text x="' + (x + bw / 2) + '" y="' + (H - 4) + '" font-size="9" fill="#9ca3af" text-anchor="middle" font-family="Inter">' + labels[i].short + '</text>';
     }).join('');
 
+    // Make it explicit that the axis is zoomed, so the bars are not misread.
+    const zeroNote = sc.min > 0
+      ? '<text x="' + padL + '" y="' + (padT - 4) + '" font-size="8" fill="#c3c8d1" font-family="Inter">axis starts at ' + axisLabel(sc.min, span) + '</text>'
+      : '';
+
     return (
       '<svg class="chart-hourly" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" ' +
         'data-w="' + W + '" data-h="' + H + '" data-padl="' + padL + '" data-padr="' + padR + '" data-padt="' + padT + '" data-padb="' + padB + '">' +
-        tickLines + bars +
+        tickLines + bars + zeroNote +
       '</svg>'
     );
   }
@@ -4793,10 +4821,10 @@
     const W = +ds.w, H = +ds.h;
     const padL = +ds.padl, padR = +ds.padr, padT = +ds.padt, padB = +ds.padb;
     const innerW = W - padL - padR;
-    const maxY = +ds.maxy;
+    const yMin = +ds.ymin, yMax = +ds.ymax;
     const innerH = H - padT - padB;
     const N = data.actualSeries.length;
-    const yAt = v => padT + innerH * (1 - v / maxY);
+    const yAt = v => padT + innerH * (1 - (v - yMin) / (yMax - yMin));
 
     const guide   = svg.querySelector('.chart-guide');
     const markersG = svg.querySelector('.chart-markers');
