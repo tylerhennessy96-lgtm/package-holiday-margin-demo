@@ -545,10 +545,10 @@
 <script src="app.js"></script>
 <script>
 (function () {
-  const REGIONS = ['All regions','Western Mediterranean','Eastern Mediterranean','Canaries & Atlantic','Long Haul'];
+  const REGIONS = ['All regions','Western Mediterranean','Eastern Mediterranean','Canaries & Atlantic','Caribbean & Mexico'];
   const DESTS = ['All destinations','Faro — Algarve','Palma — Mallorca','Alicante — Costa Blanca',
     'Heraklion — Crete','Antalya — Turkey','Paphos — Cyprus','Tenerife South','Lanzarote — Arrecife',
-    'Funchal — Madeira','Cancún — Mexico','Punta Cana — Dominican Rep.','Dubai — UAE'];
+    'Funchal — Madeira','Cancún — Mexico','Punta Cana — Dominican Rep.','Montego Bay — Jamaica'];
   const GATEWAYS = ['All gateways','London Gatwick','Manchester','Birmingham','Glasgow','Bristol','London Stansted','Newcastle','Edinburgh'];
   const METRICS = ['Demand level','Web sessions','Conversion %','Booking pace %','Package margin %','Supplement margin %','% target sold','Days to departure','Always apply'];
   const OPS = ['>','<','=','>=','<=','between'];
@@ -569,7 +569,7 @@
       departureType:'Any', logic:'ALL',
       conditions:[{metric:'Package margin %',op:'<',value:'18'}],
       action:{type:'Floor margin at %', value:'18'}, modified:'2026-07-22', by:'System' },
-    { id:'r4', name:'Long haul — protect margin close to departure', status:'Active', region:'Long Haul', dest:'All destinations', gateway:'All gateways',
+    { id:'r4', name:'Caribbean — protect margin close to departure', status:'Active', region:'Caribbean & Mexico', dest:'All destinations', gateway:'All gateways',
       departureType:'Any', logic:'ALL',
       conditions:[{metric:'Days to departure',op:'<',value:'21'},{metric:'Package margin %',op:'<',value:'25'}],
       action:{type:'Hold margin', value:''}, modified:'2026-07-20', by:'T. Hennessy' },

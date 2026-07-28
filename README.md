@@ -21,15 +21,17 @@ Demand comes from **observed web traffic** — sessions and conversion. The
 operator does not own the flights, so there is no seat capacity, load factor or
 booking curve anywhere in the model.
 
-**Supplements** (board and room upgrades, transfers, bags, single-occupancy)
-carry a much richer margin than the base package, so they get their own column
-next to the package margin.
+**Adjustments** sit on every row at every level: margin points (ppt), a price
+move (£ per person), and a supplement (£ per person). Edit one on a region or
+destination and it propagates to every product beneath it. A parent shows a
+value only when its children agree — otherwise it reads "mixed" rather than
+inventing an average.
 
 ## Pages
 
 | Page | What it does |
 | --- | --- |
-| **Pricing** (`index.html`) | Region → Destination → Gateway accordion. Each row aggregates the departures in range — the Calendar view carries the date dimension. Filters, sorting, alerts, demand levels, package and supplement margin, a dedicated margin input on every gateway row, accept/reject, reason codes, bulk margin update, detail modals, and a Margin Copilot mock. |
+| **Pricing** (`index.html`) | Region → Destination → Gateway accordion. Each row aggregates the departures in range — the Calendar view carries the date dimension. Filters, sorting, alerts, demand levels, margin, and three adjustment inputs (ppt / £ / supplement) usable at any level with propagation. Accept, reject, reasons, notes and Ask work at every level. Bulk margin update, detail modals, Margin Copilot mock. |
 | **Autopilot** (`autopilot.html`) | Same three-level accordion, where every row carries its own auto-accept margin band (±ppt) and peak-day switch, inherited gateway → destination → region. |
 | **Alert rules** (`alerts.html`) | Same accordion again, carrying per-row alert thresholds (low pace, margin floor, conversion) with the same inheritance and per-row reset. |
 | **Package rules** (`package-rules.html`) | Two-pane rule builder: scope a rule to a region, destination, gateway and departure type, add ALL/ANY conditions over demand, traffic, pace or margin, and set a margin action. Evaluated top to bottom, first match wins. |
@@ -38,8 +40,8 @@ next to the package margin.
 
 ## Hierarchy
 
-- **Region** — Western Mediterranean, Eastern Mediterranean, Canaries & Atlantic, Long Haul
-- **Destination** — 12 in total, each with a country (Faro/Algarve, Palma/Mallorca, Heraklion/Crete, Cancún, Dubai, …)
+- **Region** — Western Mediterranean, Eastern Mediterranean, Canaries & Atlantic, Caribbean & Mexico
+- **Destination** — 12 in total, each with a country (Faro/Algarve, Palma/Mallorca, Heraklion/Crete, Cancún, Montego Bay, …)
 - **Gateway** — UK outbound departure point (London Gatwick, Manchester, Birmingham, Glasgow, …)
 
 Parent rows are true roll-ups: volumes sum, rates are revenue- or
@@ -59,9 +61,9 @@ recommended margin move:
 | DL2 | Low demand | −1.0 to −2.5 ppt |
 | DL1 | Very low demand | −2.5 to −5.0 ppt |
 
-Most departures sit in DL3, so most rows carry no recommended change. The
-recommended margin sits in an editable cell on every gateway row — type a new
-number and it becomes an override that flows through to the calendar.
+Most departures sit in DL3, so most rows carry no recommended change. Accept,
+reject, reason codes, notes and Ask all work at region and destination level
+too, so a whole region can be actioned in one click.
 
 ## Alerts
 

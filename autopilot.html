@@ -452,10 +452,10 @@
       { id:'tenerife', name:'Tenerife South', country:'ES', gateways:['lgw','man','bhx','gla'] },
       { id:'lanzarote', name:'Lanzarote — Arrecife', country:'ES', gateways:['lgw','man','stn'] },
       { id:'funchal', name:'Funchal — Madeira', country:'PT', gateways:['lgw','man','brs'] } ] },
-    { id:'longhaul', name:'Long Haul', dests:[
-      { id:'cancun', name:'Cancún — Mexico', country:'MX', gateways:['lgw','man'] },
-      { id:'puntacana', name:'Punta Cana — Dominican Rep.', country:'DO', gateways:['lgw','man'] },
-      { id:'dubai', name:'Dubai — UAE', country:'AE', gateways:['lgw','man','bhx'] } ] },
+    { id:'caribbean', name:'Caribbean & Mexico', dests:[
+      { id:'cancun', name:'Cancún — Mexico', country:'MX', gateways:['lgw','man','bhx','gla'] },
+      { id:'puntacana', name:'Punta Cana — Dominican Rep.', country:'DO', gateways:['lgw','man','bhx','ncl'] },
+      { id:'montego', name:'Montego Bay — Jamaica', country:'JM', gateways:['lgw','man','bhx','stn'] } ] },
   ];
   REGIONS.forEach(r => r.dests.forEach(d => { d.region = r; }));
 

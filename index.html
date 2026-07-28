@@ -588,33 +588,32 @@
       vertical-align: middle;
     }
 
-    /* Dedicated margin input cell — always visible, type straight in */
-    table.srt tbody td.margin-input-cell { padding: 3px 8px; }
-    .mi-wrap { display: inline-flex; align-items: center; gap: 3px; justify-content: flex-end; }
-    input.margin-input {
-      width: 60px;
-      height: 26px;
-      padding: 0 6px;
+    /* Adjustment input cells — usable at any accordion level */
+    table.srt tbody td.adj-cell { padding: 3px 6px; }
+    .adj-wrap { display: inline-flex; align-items: center; gap: 2px; justify-content: flex-end; }
+    input.adj-input {
+      width: 52px;
+      height: 25px;
+      padding: 0 5px;
       border: 1px solid var(--border-mid);
       border-radius: var(--radius);
       font-family: 'Inter', sans-serif;
-      font-size: 11.5px;
-      font-weight: 600;
+      font-size: 11px;
+      font-weight: 500;
       color: var(--text-primary);
       text-align: right;
       font-variant-numeric: tabular-nums;
       background: var(--surface);
       transition: border-color .12s, background .12s;
+      -moz-appearance: textfield;
     }
-    input.margin-input:hover { border-color: var(--accent); }
-    input.margin-input:focus { outline: 1.5px solid var(--accent); outline-offset: -1px; border-color: var(--accent); }
-    input.margin-input.is-override { border-color: var(--accent); color: var(--accent-text); background: rgba(232,0,125,0.04); }
-    .mi-unit { font-size: 10.5px; color: var(--text-muted); }
-
-    /* Supplement margin cell */
-    .sup-cell { display: inline-flex; flex-direction: column; align-items: flex-end; line-height: 1.15; cursor: default; }
-    .sup-cell .sup-pct { font-size: 11.5px; font-weight: 600; color: #7c3aed; font-variant-numeric: tabular-nums; }
-    .sup-cell .sup-gbp { font-size: 9.5px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+    input.adj-input::-webkit-outer-spin-button,
+    input.adj-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+    input.adj-input::placeholder { color: #cbd0d8; font-size: 9.5px; }
+    input.adj-input:hover { border-color: var(--accent); }
+    input.adj-input:focus { outline: 1.5px solid var(--accent); outline-offset: -1px; border-color: var(--accent); }
+    input.adj-input.is-set { border-color: var(--accent); color: var(--accent-text); font-weight: 600; background: rgba(232,0,125,0.04); }
+    .adj-unit, .adj-prefix { font-size: 10px; color: var(--text-muted); }
 
     /* Bulk button idle state — clickable, just visually quiet */
     .accept-all-btn.is-idle { opacity: 0.62; }
@@ -2494,7 +2493,7 @@
             <th class="band-product" colspan="3">Package</th>
             <th class="band-demand"  colspan="4">Observed web demand</th>
             <th class="band-sales"   colspan="4">Bookings</th>
-            <th class="band-price"   colspan="6">Margin</th>
+            <th class="band-price"   colspan="8">Margin</th>
           </tr>
           <tr class="cols">
             <th class="col-select"><input type="checkbox" class="row-select" id="selectAllRows" aria-label="Select all visible rows" title="Select all visible gateway rows"></th>
@@ -2512,7 +2511,9 @@
             <th class="num sortable" data-sort-key="yoy" data-sort-type="num"><span class="th-inner"><span class="th-text">YoY<span class="sub">revenue</span></span><span class="sort-ind" aria-hidden="true"><span class="sa-up">▲</span><span class="sa-down">▼</span></span></span></th>
 
             <th class="num sortable" data-sort-key="margin" data-sort-type="num"><span class="th-inner"><span class="th-text">Margin<span class="sub">package</span></span><span class="sort-ind" aria-hidden="true"><span class="sa-up">▲</span><span class="sa-down">▼</span></span></span></th>
-            <th class="num sortable" data-sort-key="supMargin" data-sort-type="num"><span class="th-inner"><span class="th-text">Sup<span class="sub">margin</span></span><span class="sort-ind" aria-hidden="true"><span class="sa-up">▲</span><span class="sa-down">▼</span></span></span></th>
+            <th class="num"><span class="th-inner"><span class="th-text">Adjust<span class="sub">margin ppt</span></span></span></th>
+            <th class="num"><span class="th-inner"><span class="th-text">Adjust<span class="sub">price pp</span></span></span></th>
+            <th class="num"><span class="th-inner"><span class="th-text">Sup<span class="sub">£ pp</span></span></span></th>
             <th class="num sortable" data-sort-key="recMargin" data-sort-type="num"><span class="th-inner"><span class="th-text">Rec.<span class="sub">margin</span></span><span class="sort-ind" aria-hidden="true"><span class="sa-up">▲</span><span class="sa-down">▼</span></span></span></th>
             <th class="num sortable" data-sort-key="deltaPpt" data-sort-type="num"><span class="th-inner"><span class="th-text">Δ<span class="sub">ppt</span></span><span class="sort-ind" aria-hidden="true"><span class="sa-up">▲</span><span class="sa-down">▼</span></span></span></th>
             <th class="sortable" data-sort-key="recAction" data-sort-type="num"><span class="th-inner"><span class="th-text">Recommendation</span><span class="sort-ind" aria-hidden="true"><span class="sa-up">▲</span><span class="sa-down">▼</span></span></span></th>
@@ -2864,11 +2865,11 @@
       ],
     },
     {
-      id: 'longhaul', name: 'Long Haul',
+      id: 'caribbean', name: 'Caribbean & Mexico',
       dests: [
-        { id: 'cancun',   name: 'Cancún — Mexico',            country: 'MX', countryName: 'Mexico',             cost: 1145, price: 1795, gateways: ['lgw','man','bhx','gla'] },
+        { id: 'cancun',   name: 'Cancún — Mexico',             country: 'MX', countryName: 'Mexico',             cost: 1145, price: 1795, gateways: ['lgw','man','bhx','gla'] },
         { id: 'puntacana',name: 'Punta Cana — Dominican Rep.', country: 'DO', countryName: 'Dominican Republic', cost: 1098, price: 1725, gateways: ['lgw','man','bhx','ncl'] },
-        { id: 'dubai',    name: 'Dubai — UAE',                country: 'AE', countryName: 'United Arab Emirates', cost: 968, price: 1545, gateways: ['lgw','man','bhx','stn'] },
+        { id: 'montego',  name: 'Montego Bay — Jamaica',       country: 'JM', countryName: 'Jamaica',            cost: 1188, price: 1849, gateways: ['lgw','man','bhx','stn'] },
       ],
     },
   ];
@@ -3016,16 +3017,6 @@
 
     const marginPct = Math.round(((current - cost) / current) * 1000) / 10;
 
-    // ── Supplements ──
-    // Board upgrades, room upgrades, transfers, bags and single-occupancy
-    // supplements. Attached to a share of bookings, and carrying a much
-    // richer margin than the base package — which is exactly why the Sup
-    // column sits next to the package margin.
-    const supRng = rngFor('sup|' + key);
-    const supAttach   = pick(supRng, 0.28, 0.62);                       // share of bookings taking one
-    const supPerPax   = Math.round(current * pick(supRng, 0.06, 0.16)); // supplement revenue pp
-    const supMarginPct = Math.round(pick(supRng, 38, 68) * 10) / 10;    // margin on that revenue
-
     // ── Recommendation engine (rules-driven, on MARGIN) ──
     // Demand level drives the margin move: high observed demand earns more
     // margin, weak demand gives it back to stimulate conversion. DL3 holds,
@@ -3055,9 +3046,6 @@
       cost, current, marginPct, recMarginPct, recPrice,
       marginGbp: current - cost,
       revenue: sold * current,
-      supAttach, supPerPax, supMarginPct,
-      supRevenue: sold * supAttach * supPerPax,
-      supMarginGbp: sold * supAttach * supPerPax * (supMarginPct / 100),
     };
   }
 
@@ -3074,7 +3062,6 @@
   function aggregate(rows) {
     let sold = 0, fcst = 0, revenue = 0, sessions = 0, sessionsRate = 0;
     let costRev = 0, recRev = 0;
-    let supRev = 0, supMargin = 0;
     let rosNum = 0, rosDen = 0;
     let demandNum = 0, demandExNum = 0, demandDen = 0;
     let yoyNum = 0, yoyDen = 0;
@@ -3086,8 +3073,6 @@
       revenue  += row.revenue;
       costRev  += row.sold * row.cost;
       recRev   += row.sold * recPriceOf(row);
-      supRev   += row.supRevenue;
-      supMargin += row.supMarginGbp;
       rosNum   += row.ros * row.revenue;  rosDen += row.revenue;
       demandNum   += row.demand * row.sessions;
       demandExNum += row.demandExWx * row.sessions;
@@ -3103,9 +3088,6 @@
       recPrice: sold ? recRev / sold : 0,
       marginPct, recMarginPct,
       marginGbp: revenue - costRev,
-      supRevenue: supRev,
-      supMarginGbp: supMargin,
-      supMarginPct: supRev ? Math.round((supMargin / supRev) * 1000) / 10 : 0,
       deltaPpt: Math.round((recMarginPct - marginPct) * 10) / 10,
       ros: rosDen ? Math.round(rosNum / rosDen) : 0,
       demand:     demandDen ? Math.round(demandNum / demandDen) : 0,
@@ -3136,6 +3118,107 @@
     const out = [];
     region.dests.forEach(d => out.push(...productLeavesFor(d)));
     return out;
+  }
+
+  // ── Manual adjustments ─────────────────────────────────────
+  // Two ways to nudge the engine's recommendation, mirroring the reference
+  // demo: margin points (%) or a price move (£ pp). Both resolve to the same
+  // stored quantity — margin points — so the two inputs are just different
+  // views of one adjustment. A supplement (£ pp) is tracked separately and
+  // stays blank until someone enters one.
+  //
+  // Editing at ANY accordion level writes the value down onto every product
+  // beneath it, so a region edit propagates to its destinations and gateways.
+  function adjOf(key) {
+    const st = rowStates[key];
+    return {
+      ppt: (st && typeof st.adjPpt === 'number') ? st.adjPpt : 0,
+      sup: (st && typeof st.supGbp === 'number') ? st.supGbp : 0,
+    };
+  }
+  // Price move (£ pp) that a margin-point adjustment represents, at this
+  // product's blended economics.
+  function pptToGbp(dest, gw, ppt) {
+    if (!ppt) return 0;
+    const agg = aggregate(productLeaves(dest, gw));
+    const base = agg.recMarginPct;
+    return Math.round(marginPctToPrice(agg.cost, base + ppt) - marginPctToPrice(agg.cost, base));
+  }
+  function gbpToPpt(dest, gw, gbp) {
+    if (!gbp) return 0;
+    const agg = aggregate(productLeaves(dest, gw));
+    const base = agg.recMarginPct;
+    const newPrice = Math.max(agg.cost + 5, marginPctToPrice(agg.cost, base) + gbp);
+    const newMargin = ((newPrice - agg.cost) / newPrice) * 100;
+    return Math.round((newMargin - base) * 10) / 10;
+  }
+  // A supplement (£ pp) expressed as margin points on top of the base rec.
+  function supToPpt(dest, gw, sup) {
+    if (!sup) return 0;
+    const agg = aggregate(productLeaves(dest, gw));
+    const base = agg.recMarginPct;
+    const newPrice = Math.max(agg.cost + 5, marginPctToPrice(agg.cost, base) + sup);
+    return Math.round((((newPrice - agg.cost) / newPrice) * 100 - base) * 10) / 10;
+  }
+
+  // Final recommended margin for a product: engine + adjustment + supplement.
+  function productRecMargin(dest, gw) {
+    const agg = aggregate(productLeaves(dest, gw));
+    const a = adjOf(productKey(dest, gw));
+    const total = agg.recMarginPct + a.ppt + supToPpt(dest, gw, a.sup);
+    return Math.max(2, Math.min(72, Math.round(total * 10) / 10));
+  }
+
+  // Resolve a scope id ("region:x" | "dest:x" | "product:d|g") to its products.
+  function productsForScopeId(scopeId) {
+    const [kind, rest] = scopeId.split(':');
+    if (kind === 'region') {
+      const rg = REGIONS.find(r => r.id === rest);
+      return rg ? productsUnder(rg, 'region') : [];
+    }
+    if (kind === 'dest') {
+      const d = PARKS.find(p => p.id === rest);
+      return d ? productsUnder(d, 'dest') : [];
+    }
+    const [dId, gId] = rest.split('|');
+    const d = PARKS.find(p => p.id === dId);
+    const gw = d && d.tickets.find(t => t.id === gId);
+    return (d && gw) ? [{ dest: d, gw }] : [];
+  }
+
+  // Every product under a scope, as {dest, gw} pairs.
+  function productsUnder(scope, kind) {
+    const out = [];
+    const add = d => d.tickets.forEach(gw => { if (productPasses(d, gw)) out.push({ dest: d, gw }); });
+    if (kind === 'region') scope.dests.filter(parkMatchesFilter).forEach(add);
+    else if (kind === 'dest') add(scope);
+    else out.push(scope);
+    return out;
+  }
+  // Average of a per-product value across a scope — what a parent cell shows.
+  function scopeAvg(products, fn) {
+    if (!products.length) return 0;
+    let sum = 0;
+    products.forEach(p => { sum += fn(p.dest, p.gw); });
+    return Math.round((sum / products.length) * 10) / 10;
+  }
+  // Write an adjustment down onto every product in scope.
+  function applyAdjustment(products, field, value) {
+    products.forEach(({ dest, gw }) => {
+      const key = productKey(dest, gw);
+      const st = rowStates[key] || (rowStates[key] = {});
+      if (field === 'ppt') {
+        if (!value) delete st.adjPpt; else st.adjPpt = value;
+      } else if (field === 'gbp') {
+        const ppt = gbpToPpt(dest, gw, value);
+        if (!ppt) delete st.adjPpt; else st.adjPpt = ppt;
+      } else if (field === 'sup') {
+        if (!value) delete st.supGbp; else st.supGbp = value;
+      }
+      if (st.adjPpt || st.supGbp) st.state = st.state === 'rejected' ? st.state : 'overridden';
+      else if (st.state === 'overridden') delete st.state;
+      cleanupState(key);
+    });
   }
 
   // Sold-weighted recommendation for a product, before any override.
@@ -3441,11 +3524,78 @@
     const cls = pct >= 30 ? 'mg-high' : pct >= 20 ? 'mg-mid' : pct >= 12 ? 'mg-low' : 'mg-thin';
     return '<span class="margin-pill ' + cls + '">' + pct.toFixed(1) + '%</span>';
   }
-  function supCell(pct, gbp) {
-    return '<span class="sup-cell" title="Supplement margin ' + pct.toFixed(1) + '% · ' + fmtGbpK(gbp) + ' over the period">' +
-      '<span class="sup-pct">' + pct.toFixed(1) + '%</span>' +
-      '<span class="sup-gbp">' + fmtGbpK(gbp) + '</span></span>';
+  // Adjustment cells — usable at any accordion level.
+  function adjCells(scopeId, products) {
+    // A parent shows a value only when every product beneath it agrees.
+    // Anything else reads "mixed" — averaging a sparse supplement across a
+    // region would invent a number nobody set.
+    const uniform = fn => {
+      const vals = products.map(p => fn(p.dest, p.gw));
+      if (!vals.length) return { v: 0, mixed: false };
+      const first = vals[0];
+      return vals.every(x => Math.abs(x - first) < 0.05)
+        ? { v: Math.round(first * 10) / 10, mixed: false }
+        : { v: 0, mixed: true };
+    };
+    const p1 = uniform((d, g) => adjOf(productKey(d, g)).ppt);
+    const p2 = uniform((d, g) => pptToGbp(d, g, adjOf(productKey(d, g)).ppt));
+    const p3 = uniform((d, g) => adjOf(productKey(d, g)).sup);
+    const pct = p1.v, gbp = p2.v, sup = p3.v;
+    const ph = st => st.mixed ? 'mixed' : '—';
+    const cls = v => 'adj-input' + (v ? ' is-set' : '');
+    return (
+      '<td class="num adj-cell">' +
+        '<span class="adj-wrap">' +
+          '<input type="number" class="' + cls(pct) + '" step="0.5" data-scope="' + esc(scopeId) + '" data-adj="ppt"' +
+            ' value="' + (pct ? pct : '') + '" placeholder="' + ph(p1) + '" aria-label="Margin point adjustment">' +
+          '<span class="adj-unit">ppt</span>' +
+        '</span>' +
+      '</td>' +
+      '<td class="num adj-cell">' +
+        '<span class="adj-wrap">' +
+          '<span class="adj-prefix">£</span>' +
+          '<input type="number" class="' + cls(gbp) + '" step="5" data-scope="' + esc(scopeId) + '" data-adj="gbp"' +
+            ' value="' + (gbp ? gbp : '') + '" placeholder="' + ph(p2) + '" aria-label="Price adjustment in pounds">' +
+        '</span>' +
+      '</td>' +
+      '<td class="num adj-cell">' +
+        '<span class="adj-wrap">' +
+          '<span class="adj-prefix">£</span>' +
+          '<input type="number" class="' + cls(sup) + '" step="5" data-scope="' + esc(scopeId) + '" data-adj="sup"' +
+            ' value="' + (sup ? sup : '') + '" placeholder="' + ph(p3) + '" aria-label="Supplement per person">' +
+        '</span>' +
+      '</td>'
+    );
   }
+
+  // Action cell — works at product, destination and region level. A decision
+  // at a parent applies to every product beneath it.
+  function scopeActionCell(scopeId, products) {
+    const keys = products.map(p => productKey(p.dest, p.gw));
+    const states = keys.map(k => (rowStates[k] || {}).state);
+    const all = v => keys.length > 0 && states.every(x => x === v);
+    const some = v => states.some(x => x === v);
+    const accepted = all('accepted'), rejected = all('rejected');
+    const mixed = !accepted && !rejected && (some('accepted') || some('rejected') || some('overridden'));
+    const reasons = [...new Set(keys.map(k => (rowStates[k] || {}).reason).filter(Boolean))];
+    const reason = reasons.length === 1 ? reasons[0] : '';
+    const hasNote = keys.some(k => { const st = rowStates[k]; return !!(st && st.note && String(st.note).trim()); });
+    const badge = accepted ? '<span class="action-badge b-accepted">Accepted</span>'
+                : rejected ? '<span class="action-badge b-rejected">Rejected</span>'
+                : mixed    ? '<span class="action-badge b-overridden">Mixed</span>'
+                : '<span class="pending-chip">Pending</span>';
+    const acceptClass = accepted ? 'solid' : (rejected ? 'dim' : '');
+    const rejectClass = rejected ? 'solid' : (accepted ? 'dim' : '');
+    return (
+      '<td class="action-cell" data-scope="' + esc(scopeId) + '">' +
+        '<span class="action-cell-inner">' + badge +
+          actionButtons(acceptClass, rejectClass, hasNote) +
+          reasonSelectHtml(scopeId, reason) +
+        '</span>' +
+      '</td>'
+    );
+  }
+
   function productMarginPct(dest, gw) { return aggregate(productLeaves(dest, gw)).marginPct; }
   function productKeysIn(dests) {
     const out = [];
@@ -3584,7 +3734,6 @@
       case 'demand':     return agg.demand;
       case 'yoy':        return agg.yoy;
       case 'margin':     return agg.marginPct;
-      case 'supMargin':  return agg.supMarginPct;
     }
     return null;
   }
@@ -3649,21 +3798,17 @@
     });
 
     if (!out.length) {
-      out.push('<tr class="srt-empty"><td colspan="17">No matching rows for the current filters.</td></tr>');
+      out.push('<tr class="srt-empty"><td colspan="19">No matching rows for the current filters.</td></tr>');
     }
     body.innerHTML = out.join('');
     refreshHeaderCounts();
   }
 
   // Shared trailing cells for an aggregate row (destination or region).
-  function aggTailCells(agg, leafRows, scopeLabel) {
+  function aggTailCells(agg, scopeId, products) {
     let up = 0, down = 0;
-    const seen = new Set();
-    leafRows.forEach(l => {
-      const k = productKey(l.park, l.ticket);
-      if (seen.has(k)) return;
-      seen.add(k);
-      const d = recMarginOf(l) - productMarginPct(l.park, l.ticket);
+    products.forEach(({ dest, gw }) => {
+      const d = productRecMargin(dest, gw) - aggregate(productLeaves(dest, gw)).marginPct;
       if (d > 0.05) up++; else if (d < -0.05) down++;
     });
     const recSummary = (up || down)
@@ -3672,7 +3817,9 @@
           (down ? '<span class="ras-down">' + down + '↓</span>' : '') +
         '</span>'
       : '<span class="rec-action-summary ras-flat">—</span>';
-    const dTint = tintFor(agg.deltaPpt);
+    const recM = scopeAvg(products, (d, g) => productRecMargin(d, g));
+    const delta = Math.round((recM - agg.marginPct) * 10) / 10;
+    const dTint = tintFor(delta);
     return (
       '<td class="num">' + fmtInt(agg.sessions) + '</td>' +
       '<td class="num">' + conversionCell(agg.conversion) + '</td>' +
@@ -3685,11 +3832,11 @@
       '<td class="num ' + tintFor(agg.yoy) + '">' + signed(agg.yoy, '%') + '</td>' +
 
       '<td class="num">' + marginPill(agg.marginPct) + '</td>' +
-      '<td class="num">' + supCell(agg.supMarginPct, agg.supMarginGbp) + '</td>' +
-      '<td class="num ' + dTint + '">' + marginPill(agg.recMarginPct) + '</td>' +
-      '<td class="num ' + dTint + '">' + signed(agg.deltaPpt, 'ppt') + '</td>' +
+      adjCells(scopeId, products) +
+      '<td class="num ' + dTint + '">' + marginPill(recM) + '</td>' +
+      '<td class="num ' + dTint + '">' + signed(delta, 'ppt') + '</td>' +
       '<td class="rec-action-cell">' + recSummary + '</td>' +
-      '<td class="action-cell"><span class="row-action-meta">' + seen.size + ' ' + scopeLabel + '</span></td>'
+      scopeActionCell(scopeId, products)
     );
   }
 
@@ -3711,7 +3858,7 @@
           '</span>' +
         '</td>' +
         alertsCellHtml(alerts) +
-        aggTailCells(agg, leafRows, 'products') +
+        aggTailCells(agg, 'region:' + region.id, productsUnder(region, 'region')) +
       '</tr>'
     );
   }
@@ -3735,14 +3882,15 @@
           '</span>' +
         '</td>' +
         alertsCellHtml(alerts) +
-        aggTailCells(agg, leafRows, 'gateways') +
+        aggTailCells(agg, 'dest:' + dest.id, productsUnder(dest, 'dest')) +
       '</tr>'
     );
   }
 
-  // ── Product (gateway) row — the editable leaf of the table ──
+  // ── Product (gateway) row ──
   function productRowHtml(dest, gw) {
     const key = productKey(dest, gw);
+    const scopeId = 'product:' + dest.id + '|' + gw.id;
     const leaves = productLeaves(dest, gw);
     const agg = aggregate(leaves);
     const st = rowStates[key] || {};
@@ -3750,31 +3898,11 @@
       st.state === 'accepted'   ? ' row-accepted' :
       st.state === 'rejected'   ? ' row-rejected' :
       st.state === 'overridden' ? ' row-overridden' : '';
-    const recM = (typeof st.overrideValue === 'number') ? st.overrideValue : agg.recMarginPct;
-    const deltaPpt = Math.round((recM - agg.marginPct) * 10) / 10;
-    const tint = deltaPpt > 0.05 ? 'cell-pos' : (deltaPpt < -0.05 ? 'cell-neg' : '');
-    const acceptClass = (st.state === 'accepted') ? 'solid' : (st.state ? 'dim' : '');
-    const rejectClass = (st.state === 'rejected') ? 'solid' : (st.state ? 'dim' : '');
-    const hasNote = !!(st.note && String(st.note).trim());
-    const alerts = unionAlertsWithRollup([], leaves);
-    const action = deltaPpt > 0.05 ? 'Increase' : deltaPpt < -0.05 ? 'Decrease' : 'No change';
-
-    let badge;
-    if (st.state === 'accepted')        badge = '<span class="action-badge b-accepted">Accepted</span>';
-    else if (st.state === 'rejected')   badge = '<span class="action-badge b-rejected">Rejected</span>';
-    else if (st.state === 'overridden') badge = '<span class="action-badge b-overridden">Overridden</span>';
-    else                                badge = '<span class="pending-chip">Pending</span>';
-
-    // Dedicated input cell — always visible, type straight into it.
-    const recCell =
-      '<td class="num margin-input-cell ' + tint + '">' +
-        '<span class="mi-wrap">' +
-          '<input type="number" class="margin-input' + (typeof st.overrideValue === 'number' ? ' is-override' : '') +
-            '" data-key="' + esc(key) + '" step="0.5" min="2" max="72" value="' + recM.toFixed(1) + '"' +
-            ' aria-label="Recommended margin % for ' + esc(dest.name) + ' ' + esc(gw.label) + '">' +
-          '<span class="mi-unit">%</span>' +
-        '</span>' +
-      '</td>';
+    const recM = productRecMargin(dest, gw);
+    const delta = Math.round((recM - agg.marginPct) * 10) / 10;
+    const tint = delta > 0.05 ? 'cell-pos' : (delta < -0.05 ? 'cell-neg' : '');
+    const products = [{ dest, gw }];
+    const action = delta > 0.05 ? 'Increase' : delta < -0.05 ? 'Decrease' : 'No change';
 
     return (
       '<tr class="row-leaf' + stateCls + '" data-key="' + esc(key) + '" data-dest="' + dest.id + '" data-gw="' + gw.id + '">' +
@@ -3785,7 +3913,7 @@
           '<span class="lvl-gw-name">' + esc(gw.label) + '</span>' +
           '<span class="gw-code">' + gw.code + '</span>' +
         '</td>' +
-        alertsCellHtml(alerts) +
+        alertsCellHtml(unionAlertsWithRollup([], leaves)) +
 
         '<td class="num">' + fmtInt(agg.sessions) + '</td>' +
         '<td class="num">' + conversionCell(agg.conversion) + '</td>' +
@@ -3798,16 +3926,11 @@
         '<td class="num ' + tintFor(agg.yoy) + '">' + signed(agg.yoy, '%') + '</td>' +
 
         '<td class="num">' + marginPill(agg.marginPct) + '</td>' +
-        '<td class="num">' + supCell(agg.supMarginPct, agg.supMarginGbp) + '</td>' +
-        recCell +
-        '<td class="num ' + tint + '">' + signed(deltaPpt, 'ppt') + '</td>' +
+        adjCells(scopeId, products) +
+        '<td class="num ' + tint + '">' + marginPill(recM) + '</td>' +
+        '<td class="num ' + tint + '">' + signed(delta, 'ppt') + '</td>' +
         '<td class="rec-action-cell">' + recActionChip(action) + '</td>' +
-        '<td class="action-cell">' +
-          '<span class="action-cell-inner">' + badge +
-            actionButtons(acceptClass, rejectClass, hasNote) +
-            reasonSelectHtml(key, st.reason) +
-          '</span>' +
-        '</td>' +
+        scopeActionCell(scopeId, products) +
       '</tr>'
     );
   }
@@ -3895,10 +4018,12 @@
     }
     const reasonSel = e.target.closest('select.reason-select');
     if (reasonSel) {
-      const key = reasonSel.dataset.key;
-      const st = rowStates[key] || (rowStates[key] = {});
-      if (reasonSel.value) st.reason = reasonSel.value; else delete st.reason;
-      cleanupState(key);
+      productsForScopeId(reasonSel.dataset.key).forEach(pr => {
+        const k = productKey(pr.dest, pr.gw);
+        const st = rowStates[k] || (rowStates[k] = {});
+        if (reasonSel.value) st.reason = reasonSel.value; else delete st.reason;
+        cleanupState(k);
+      });
       render();
     }
   });
@@ -3921,32 +4046,24 @@
     if (st && !st.state && typeof st.overrideValue !== 'number' && !st.note && !st.reason) delete rowStates[key];
   }
 
-  // Dedicated margin input cells — commit on change/blur, Enter to confirm.
-  function commitMarginInput(input) {
-    const key = input.dataset.key;
-    const n = parseFloat(input.value);
-    const st = rowStates[key] || (rowStates[key] = {});
-    const base = baseRecFor(key);
-    if (isNaN(n)) { render(); return; }
-    const val = Math.max(2, Math.min(72, Math.round(n * 10) / 10));
-    if (Math.abs(val - base) < 0.05) {
-      delete st.overrideValue;
-      if (st.state === 'overridden') delete st.state;
-    } else {
-      st.overrideValue = val;
-      st.state = 'overridden';
-      showToast('Margin set to ' + val.toFixed(1) + '% — ' + key);
-    }
-    cleanupState(key);
+  // Adjustment inputs — commit on change, Enter to confirm. Editing at a
+  // parent level writes the value onto every product beneath it.
+  bodyEl.addEventListener('change', e => {
+    const inp = e.target.closest('input.adj-input');
+    if (!inp) return;
+    const products = productsForScopeId(inp.dataset.scope);
+    const raw = inp.value.trim();
+    const v = raw === '' ? 0 : parseFloat(raw);
+    if (isNaN(v)) { render(); return; }
+    applyAdjustment(products, inp.dataset.adj, v);
     render();
     updateBulkBtn();
-  }
-  bodyEl.addEventListener('change', e => {
-    const mi = e.target.closest('input.margin-input');
-    if (mi) commitMarginInput(mi);
+    if (products.length > 1) {
+      showToast('Applied to ' + products.length + ' products');
+    }
   });
   bodyEl.addEventListener('keydown', e => {
-    if (e.key === 'Enter' && e.target.classList.contains('margin-input')) {
+    if (e.key === 'Enter' && e.target.classList.contains('adj-input')) {
       e.preventDefault();
       e.target.blur();
     }
@@ -3990,17 +4107,32 @@
       return;
     }
 
-    // Action buttons
+    // Action buttons — scoped: a decision at region/destination level applies
+    // to every product beneath it.
     const actionBtn = e.target.closest('[data-action]');
     if (actionBtn) {
-      const tr = actionBtn.closest('tr.row-leaf');
-      if (!tr) return;
-      const key = tr.dataset.key;
-      const action = actionBtn.dataset.action;
-      if (action === 'accept') toggleAccept(key);
-      else if (action === 'reject') toggleReject(key);
-      else if (action === 'note')   openNoteModal(key);
-      else if (action === 'ask')    openRowCopilot(key);
+      const cell = actionBtn.closest('[data-scope]');
+      if (!cell) return;
+      const products = productsForScopeId(cell.dataset.scope);
+      const keys = products.map(pr => productKey(pr.dest, pr.gw));
+      if (!keys.length) return;
+      const act = actionBtn.dataset.action;
+      if (act === 'accept' || act === 'reject') {
+        const want = act === 'accept' ? 'accepted' : 'rejected';
+        const allSet = keys.every(k => (rowStates[k] || {}).state === want);
+        keys.forEach(k => {
+          const st = rowStates[k] || (rowStates[k] = {});
+          if (allSet) delete st.state; else st.state = want;
+          cleanupState(k);
+        });
+        render();
+        if (keys.length > 1 && !allSet) showToast((want === 'accepted' ? 'Accepted ' : 'Rejected ') + keys.length + ' products');
+      } else if (act === 'note') {
+        openNoteModal(cell.dataset.scope);
+      } else if (act === 'ask') {
+        openRowCopilot(cell.dataset.scope);
+      }
+      return;
     }
   });
 
@@ -4082,11 +4214,19 @@
   const noteSub       = document.getElementById('noteSub');
   let activeNoteKey   = null;
 
-  function openNoteModal(key) {
-    activeNoteKey = key;
-    const st = rowStates[key] || {};
-    const leaf = ALL_LEAVES[key];
-    noteSub.textContent = leaf.park.name + ' · ' + leaf.ticket.label + ' · ' + leaf.date.label + ' ' + leaf.date.dowLabel;
+  function scopeLabel(scopeId) {
+    const [kind, rest] = scopeId.split(':');
+    if (kind === 'region') { const r = REGIONS.find(x => x.id === rest); return r ? r.name : scopeId; }
+    if (kind === 'dest')   { const d = PARKS.find(x => x.id === rest); return d ? d.name : scopeId; }
+    const pr = productsForScopeId(scopeId)[0];
+    return pr ? pr.dest.name + ' — ' + pr.gw.label : scopeId;
+  }
+  function openNoteModal(scopeId) {
+    activeNoteKey = scopeId;
+    const products = productsForScopeId(scopeId);
+    const firstKey = products.length ? productKey(products[0].dest, products[0].gw) : scopeId;
+    const st = rowStates[firstKey] || {};
+    noteSub.textContent = scopeLabel(scopeId) + (products.length > 1 ? ' · applies to ' + products.length + ' products' : '');
     noteTextarea.value = st.note || '';
     noteExpiry.value = st.noteExpiry || '';
     noteBackdrop.classList.add('is-open');
@@ -4100,12 +4240,15 @@
   }
   function saveActiveNote() {
     if (!activeNoteKey) return;
-    const st = rowStates[activeNoteKey] || (rowStates[activeNoteKey] = {});
     const text = noteTextarea.value.trim();
     const exp  = noteExpiry.value || '';
-    if (text) st.note = text; else delete st.note;
-    if (exp)  st.noteExpiry = exp; else delete st.noteExpiry;
-    if (!st.state && typeof st.overrideValue !== 'number' && !st.note && !st.reason) delete rowStates[activeNoteKey];
+    productsForScopeId(activeNoteKey).forEach(pr => {
+      const k = productKey(pr.dest, pr.gw);
+      const st = rowStates[k] || (rowStates[k] = {});
+      if (text) st.note = text; else delete st.note;
+      if (exp)  st.noteExpiry = exp; else delete st.noteExpiry;
+      cleanupState(k);
+    });
     render();
   }
   noteTextarea.addEventListener('blur', saveActiveNote);
@@ -4196,6 +4339,60 @@
 
   // Aggregate modal data: sum child curves so the aggregate visibly equals
   // the sum of its children at every point.
+  // Per-leaf chart + comparison data. No booking curve: the demand story is
+  // observed web traffic and how well it converts.
+  function leafModalData(leaf) {
+    const r = rngFor('modal|' + leaf.stateKey);
+
+    // Web sessions across the last 14 days.
+    const N = 14;
+    const actualSeries = [], benchmarkSeries = [];
+    const dailyAvg = leaf.sessions / N;
+    for (let i = 0; i < N; i++) {
+      const ramp = 0.7 + (i / (N - 1)) * 0.6;   // interest builds toward departure
+      actualSeries.push(Math.max(5, Math.round(dailyAvg * ramp * (0.82 + r() * 0.36))));
+      benchmarkSeries.push(Math.max(5, Math.round(dailyAvg * ramp * 0.94 * (0.88 + r() * 0.24))));
+    }
+
+    // Conversion rate per day, last 7 days.
+    const dayLabels = [];
+    const baseDate = isoToDate(leaf.date.iso);
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(baseDate.getTime() - i * 86400000);
+      dayLabels.push({
+        iso: d.toISOString().slice(0, 10),
+        short: ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d.getDay()],
+        num: d.getDate(),
+      });
+    }
+    const hourly = dayLabels.map(() =>
+      Math.round(Math.max(0.4, leaf.conversion * (0.72 + r() * 0.56)) * 100) / 100);
+    const benchRng = rngFor(leaf.stateKey + '|benchmark');
+    const hourlyBenchmark = dayLabels.map(() =>
+      Math.round(Math.max(0.4, leaf.conversion * (0.80 + benchRng() * 0.44)) * 100) / 100);
+
+    const cmp = {
+      units: {
+        current:  leaf.sold,
+        forecast: leaf.fcst,
+        lastYear: Math.round(leaf.sold / (1 + (leaf.yoy / 100))),
+      },
+      revenue: {
+        current:  leaf.sold * leaf.current,
+        forecast: leaf.fcst * leaf.current,
+        lastYear: Math.round((leaf.sold * leaf.current) / (1 + (leaf.yoy / 100))),
+      },
+      margin: {
+        current:  leaf.sold * (leaf.current - leaf.cost),
+        forecast: leaf.fcst * (leaf.current - leaf.cost),
+        lastYear: Math.round((leaf.sold * (leaf.current - leaf.cost)) / (1 + (leaf.yoy / 100))),
+      },
+      ros: { current: leaf.ros, forecast: 0, lastYear: 0 },
+    };
+
+    return { actualSeries, benchmarkSeries, hourly, hourlyBenchmark, dayLabels, cmp };
+  }
+
   function aggregateModalData(leaves) {
     if (leaves.length === 1) return leafModalData(leaves[0]);
     const children = leaves.map(l => leafModalData(l));
@@ -4438,7 +4635,12 @@
       '<div class="lm-panel">' +
         '<div class="lm-panel-title">Margin recommendation</div>' + stateTag +
         '<div class="lm-rec-row"><span class="label">Package margin</span><span class="value">' + agg.marginPct.toFixed(1) + '%</span></div>' +
-        '<div class="lm-rec-row"><span class="label">Supplement margin</span><span class="value">' + agg.supMarginPct.toFixed(1) + '% · ' + fmtGbpK(agg.supMarginGbp) + '</span></div>' +
+        (function(){
+          const sup = scopeAvg(productsForScopeId(level === 'product' ? 'product:' + park.id + '|' + gw.id
+                     : level === 'dest' ? 'dest:' + park.id : 'region:' + region.id),
+                     (d, g) => adjOf(productKey(d, g)).sup);
+          return sup ? '<div class="lm-rec-row"><span class="label">Supplement</span><span class="value">' + fmtGbp(sup) + ' pp</span></div>' : '';
+        })() +
         '<div class="lm-rec-row"><span class="label">Recommended margin</span><span class="value">' + recM.toFixed(1) + '%</span></div>' +
         '<div class="lm-rec-row"><span class="label">Change</span><span class="value pct ' + pctClass + '">' + signed(deltaPpt, 'ppt') + '</span></div>' +
         '<div class="lm-rec-row"><span class="label">Margin banked</span><span class="value">' + fmtGbpK(agg.marginGbp) + '</span></div>';
@@ -4519,7 +4721,7 @@
     lmBackdrop.innerHTML = html;
     document.getElementById('lmCloseBtn').addEventListener('click', closeModal);
     const askBtn = document.getElementById('lmAskBtn');
-    if (askBtn) askBtn.addEventListener('click', () => openRowCopilot(key));
+    if (askBtn) askBtn.addEventListener('click', () => openRowCopilot('product:' + park.id + '|' + gw.id));
 
     if (level === 'product') {
       document.getElementById('lmAccept').addEventListener('click', () => {
@@ -5882,24 +6084,25 @@
   }
 
   // ── Build the row's data context once on open (product key) ──
-  function buildRowContext(rowKey) {
-    const pr = productFromKey(rowKey);
-    if (!pr) return null;
-    const leaves = productLeaves(pr.dest, pr.gw);
+  function buildRowContext(scopeId) {
+    const products = productsForScopeId(scopeId);
+    if (!products.length) return null;
+    const pr = products[0];
+    const leaves = [];
+    products.forEach(x => leaves.push(...productLeaves(x.dest, x.gw)));
     if (!leaves.length) return null;
     const agg = aggregate(leaves);
     const m = aggregateModalData(leaves);
-    const st = rowStates[rowKey] || {};
-    const recM = (typeof st.overrideValue === 'number') ? st.overrideValue : agg.recMarginPct;
+    const recM = scopeAvg(products, (d, g) => productRecMargin(d, g));
     return {
-      key: rowKey,
+      key: scopeId,
+      scopeName: scopeLabel(scopeId),
+      products: products.length,
       region: pr.dest.region, park: pr.dest, ticket: pr.gw,
       pickup: agg.ros,
       sessions: agg.sessions,
       conversion: agg.conversion,
       marginPct: agg.marginPct,
-      supMarginPct: agg.supMarginPct,
-      supMarginGbp: agg.supMarginGbp,
       marginGbp: agg.marginGbp,
       recMarginPct: recM,
       deltaPpt: Math.round((recM - agg.marginPct) * 10) / 10,
@@ -5921,7 +6124,6 @@
     return "Here's the margin position for " + ctx.park.name + " — " + ctx.ticket.label +
       " across " + ctx.departures + " departures:\n" +
       "• Package margin: " + ctx.marginPct.toFixed(1) + "% (" + fmtGbpK(ctx.marginGbp) + " banked)\n" +
-      "• Supplement margin: " + ctx.supMarginPct.toFixed(1) + "% (" + fmtGbpK(ctx.supMarginGbp) + ")\n" +
       "• Recommended: " + ctx.recMarginPct.toFixed(1) + "% (" + (ctx.deltaPpt > 0 ? '+' : '') + ctx.deltaPpt + "ppt)\n" +
       "• Web demand: " + fmtInt(ctx.sessions) + " sessions at " + ctx.conversion.toFixed(2) + "% conversion\n" +
       "• Booking pace: " + (ctx.pickup > 0 ? '+' : '') + ctx.pickup + "% vs historic · " + demandLevelForScore(ctx.demand).code + "\n" +
@@ -6013,7 +6215,7 @@
                 : ctx.deltaPpt < 0 ? 'demand is behind expectation, so the rules give margin back to stimulate conversion'
                 : 'demand is in line with expectation, so the rules hold margin';
       return 'Package margin is ' + ctx.marginPct.toFixed(1) + '% (' + fmtGbpK(ctx.marginGbp) + ' banked), ' +
-        'with supplements running at ' + ctx.supMarginPct.toFixed(1) + '%.\n' +
+        '\n' +
         'Recommended ' + ctx.recMarginPct.toFixed(1) + '% (' + signed(ctx.deltaPpt, 'ppt') + ').\n' +
         'Driver: ' + dir + '. Accept to apply, or type a new margin straight into the row.';
     }
@@ -6036,7 +6238,7 @@
                   : ctx.demand < 35 ? 'soft midweek departure demand'
                   : ctx.pickup > 0 ? 'no specific driver — pacing slightly above benchmark'
                   : 'general benchmark drift on this departure';
-      return ctx.ticket.label + ' to ' + ctx.park.name + ' is pacing ' +
+      return ctx.scopeName + ' is pacing ' +
         (ctx.pickup > 0 ? '+' : '') + ctx.pickup + '% vs benchmark. ' +
         'Driver appears to be ' + cause + '. ' +
         fmtInt(ctx.sold) + ' of ' + fmtInt(ctx.targetBookings) + ' target bookings are away. ' +
@@ -6082,11 +6284,11 @@
     if (!ctx) return;
     document.getElementById('cpRowHeader').innerHTML =
       '<div style="min-width:0;flex:1">' +
-        '<div class="cp-title">' + escHtml(ctx.park.name) + '</div>' +
-        '<div class="cp-sub">' + escHtml(ctx.ticket.label) + ' · ' +
-          escHtml(ctx.region.name) + '</div>' +
+        '<div class="cp-title">' + escHtml(ctx.scopeName) + '</div>' +
+        '<div class="cp-sub">' + escHtml(ctx.region.name) +
+          (ctx.products > 1 ? ' · ' + ctx.products + ' products' : '') + '</div>' +
         '<div class="cp-metrics">Margin: ' + ctx.marginPct.toFixed(1) + '% → ' + ctx.recMarginPct.toFixed(1) + '% · ' +
-          'Sup ' + ctx.supMarginPct.toFixed(1) + '% · Pace ' + (ctx.pickup > 0 ? '+' : '') + ctx.pickup + '%</div>' +
+          'Pace ' + (ctx.pickup > 0 ? '+' : '') + ctx.pickup + '%</div>' +
         '<div class="cp-tag"><span style="font-size:11px">✦</span> Margin Copilot</div>' +
       '</div>' +
       '<button class="cp-header-close" type="button" id="cpRowClose" aria-label="Close">' +
