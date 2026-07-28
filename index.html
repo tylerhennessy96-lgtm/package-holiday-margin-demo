@@ -178,14 +178,6 @@
     table.cal-table tbody tr:hover th.cal-route { background-color: var(--row-hover); }
 
     /* Date column */
-    table.srt tbody td.col-date {
-      color: var(--text-secondary);
-      font-variant-numeric: tabular-nums;
-      width: 98px;
-    }
-    table.srt tbody td.col-date .date-num { color: var(--text-primary); font-weight: 500; }
-    table.srt tbody td.col-date .date-dow { color: var(--text-muted); margin-left: 6px; font-size: 10.5px; }
-    table.srt tbody td.col-date .holiday-tag { color: var(--accent-text); font-weight: 500; margin-left: 6px; font-size: 10.5px; }
 
     /* ── Per-level row backgrounds (Park / Category / Leaf) ──
        Use :not(.cell-pos):not(.cell-neg) so YoY tints still read through. */
@@ -410,41 +402,6 @@
     .rec-action-summary .ras-down { color: #991b1b; }
     .rec-action-summary.ras-flat  { color: var(--text-muted); font-weight: 400; }
 
-    /* Rate selector (ticket type derived from the Adult rate) */
-    .rate-select-wrap {
-      display: inline-flex;
-      align-items: center;
-      gap: 7px;
-      margin-left: 12px;
-      flex-shrink: 0;
-    }
-    .rate-select-wrap label {
-      font-family: 'Inter', sans-serif;
-      font-size: 10.5px;
-      font-weight: 600;
-      color: var(--text-secondary);
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-    }
-    .rate-select {
-      font-family: 'Inter', sans-serif;
-      font-size: 12.5px;
-      font-weight: 500;
-      color: var(--text-primary);
-      background: var(--surface);
-      border: 1px solid var(--border-mid);
-      border-radius: 20px;
-      height: 30px;
-      padding: 0 28px 0 12px;
-      appearance: none;
-      -webkit-appearance: none;
-      cursor: pointer;
-      background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'><path d='M2 4l3 3 3-3' stroke='%236b7280' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>");
-      background-repeat: no-repeat;
-      background-position: right 10px center;
-    }
-    .rate-select:hover { border-color: var(--accent); }
-    .rate-select:focus { outline: 1.5px solid var(--accent); outline-offset: -1px; }
 
     /* ── Rec. margin editing ── */
     table.srt tbody td.rec-cell {
@@ -630,6 +587,37 @@
       letter-spacing: 0.04em;
       vertical-align: middle;
     }
+
+    /* Dedicated margin input cell — always visible, type straight in */
+    table.srt tbody td.margin-input-cell { padding: 3px 8px; }
+    .mi-wrap { display: inline-flex; align-items: center; gap: 3px; justify-content: flex-end; }
+    input.margin-input {
+      width: 60px;
+      height: 26px;
+      padding: 0 6px;
+      border: 1px solid var(--border-mid);
+      border-radius: var(--radius);
+      font-family: 'Inter', sans-serif;
+      font-size: 11.5px;
+      font-weight: 600;
+      color: var(--text-primary);
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+      background: var(--surface);
+      transition: border-color .12s, background .12s;
+    }
+    input.margin-input:hover { border-color: var(--accent); }
+    input.margin-input:focus { outline: 1.5px solid var(--accent); outline-offset: -1px; border-color: var(--accent); }
+    input.margin-input.is-override { border-color: var(--accent); color: var(--accent-text); background: rgba(232,0,125,0.04); }
+    .mi-unit { font-size: 10.5px; color: var(--text-muted); }
+
+    /* Supplement margin cell */
+    .sup-cell { display: inline-flex; flex-direction: column; align-items: flex-end; line-height: 1.15; cursor: default; }
+    .sup-cell .sup-pct { font-size: 11.5px; font-weight: 600; color: #7c3aed; font-variant-numeric: tabular-nums; }
+    .sup-cell .sup-gbp { font-size: 9.5px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+
+    /* Bulk button idle state — clickable, just visually quiet */
+    .accept-all-btn.is-idle { opacity: 0.62; }
 
     /* Margin pill — the headline commercial number */
     .margin-pill {
@@ -2477,15 +2465,6 @@
         <button class="view-toggle-btn is-active" type="button" data-view="table" role="tab" aria-selected="true">Table</button>
         <button class="view-toggle-btn" type="button" data-view="calendar" role="tab" aria-selected="false">Calendar</button>
       </div>
-      <div class="rate-select-wrap" title="The engine prices the Adult pax rate; child, infant and single-supplement rates are derived from it.">
-        <label for="rateSelect">Rate</label>
-        <select id="rateSelect" class="rate-select">
-          <option value="adult" selected>Adult</option>
-          <option value="child">Child</option>
-          <option value="infant">Infant</option>
-          <option value="single">Single supp</option>
-        </select>
-      </div>
       <div class="pricing-spacer"></div>
       <div class="commit-cluster">
         <button class="accept-all-btn" id="bulkBtn" type="button" disabled>
@@ -2512,16 +2491,14 @@
       <table class="srt">
         <thead>
           <tr class="bands">
-            <th class="band-product" colspan="5">Package details</th>
+            <th class="band-product" colspan="3">Package</th>
             <th class="band-demand"  colspan="4">Observed web demand</th>
             <th class="band-sales"   colspan="4">Bookings</th>
-            <th class="band-price"   colspan="7">Margin</th>
+            <th class="band-price"   colspan="6">Margin</th>
           </tr>
           <tr class="cols">
             <th class="col-select"><input type="checkbox" class="row-select" id="selectAllRows" aria-label="Select all visible rows" title="Select all visible gateway rows"></th>
             <th class="sortable" data-sort-key="name" data-sort-type="text"><span class="th-inner"><span class="th-text">Region / Destination<span class="sub">Gateway</span></span><span class="sort-ind" aria-hidden="true"><span class="sa-up">▲</span><span class="sa-down">▼</span></span></span></th>
-            <th class="sortable" data-sort-key="date" data-sort-type="text"><span class="th-inner"><span class="th-text">Departure</span><span class="sort-ind" aria-hidden="true"><span class="sa-up">▲</span><span class="sa-down">▼</span></span></span></th>
-            <th><span class="th-inner"><span class="th-text">Destination<span class="sub">weather</span></span></span></th>
             <th class="sortable" data-sort-key="alertCount" data-sort-type="num"><span class="th-inner"><span class="th-text">Alerts</span><span class="sort-ind" aria-hidden="true"><span class="sa-up">▲</span><span class="sa-down">▼</span></span></span></th>
 
             <th class="num sortable" data-sort-key="sessions" data-sort-type="num"><span class="th-inner"><span class="th-text">Web<span class="sub">sessions</span></span><span class="sort-ind" aria-hidden="true"><span class="sa-up">▲</span><span class="sa-down">▼</span></span></span></th>
@@ -2534,9 +2511,8 @@
             <th class="num sortable" data-sort-key="pctOfFcst" data-sort-type="num"><span class="th-inner"><span class="th-text">% target<span class="sub">sold</span></span><span class="sort-ind" aria-hidden="true"><span class="sa-up">▲</span><span class="sa-down">▼</span></span></span></th>
             <th class="num sortable" data-sort-key="yoy" data-sort-type="num"><span class="th-inner"><span class="th-text">YoY<span class="sub">revenue</span></span><span class="sort-ind" aria-hidden="true"><span class="sa-up">▲</span><span class="sa-down">▼</span></span></span></th>
 
-            <th class="num sortable" data-sort-key="cost" data-sort-type="num"><span class="th-inner"><span class="th-text">Cost<span class="sub">pp</span></span><span class="sort-ind" aria-hidden="true"><span class="sa-up">▲</span><span class="sa-down">▼</span></span></span></th>
-            <th class="num sortable" data-sort-key="price" data-sort-type="num"><span class="th-inner"><span class="th-text">Price<span class="sub">pp</span></span><span class="sort-ind" aria-hidden="true"><span class="sa-up">▲</span><span class="sa-down">▼</span></span></span></th>
-            <th class="num sortable" data-sort-key="margin" data-sort-type="num"><span class="th-inner"><span class="th-text">Margin<span class="sub">current</span></span><span class="sort-ind" aria-hidden="true"><span class="sa-up">▲</span><span class="sa-down">▼</span></span></span></th>
+            <th class="num sortable" data-sort-key="margin" data-sort-type="num"><span class="th-inner"><span class="th-text">Margin<span class="sub">package</span></span><span class="sort-ind" aria-hidden="true"><span class="sa-up">▲</span><span class="sa-down">▼</span></span></span></th>
+            <th class="num sortable" data-sort-key="supMargin" data-sort-type="num"><span class="th-inner"><span class="th-text">Sup<span class="sub">margin</span></span><span class="sort-ind" aria-hidden="true"><span class="sa-up">▲</span><span class="sa-down">▼</span></span></span></th>
             <th class="num sortable" data-sort-key="recMargin" data-sort-type="num"><span class="th-inner"><span class="th-text">Rec.<span class="sub">margin</span></span><span class="sort-ind" aria-hidden="true"><span class="sa-up">▲</span><span class="sa-down">▼</span></span></span></th>
             <th class="num sortable" data-sort-key="deltaPpt" data-sort-type="num"><span class="th-inner"><span class="th-text">Δ<span class="sub">ppt</span></span><span class="sort-ind" aria-hidden="true"><span class="sa-up">▲</span><span class="sa-down">▼</span></span></span></th>
             <th class="sortable" data-sort-key="recAction" data-sort-type="num"><span class="th-inner"><span class="th-text">Recommendation</span><span class="sort-ind" aria-hidden="true"><span class="sa-up">▲</span><span class="sa-down">▼</span></span></span></th>
@@ -2675,6 +2651,17 @@
             </svg>
           </span>
           Autopilot
+        </a>
+      </li>
+      <li>
+        <a href="package-rules.html" class="drawer-item">
+          <span class="drawer-icon">
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <polygon points="9,1.8 15.5,5 15.5,12 9,15.2 2.5,12 2.5,5"/>
+              <polyline points="2.5,5 9,8.4 15.5,5"/><line x1="9" y1="8.4" x2="9" y2="15.2"/>
+            </svg>
+          </span>
+          Package rules
         </a>
       </li>
       <li>
@@ -2879,9 +2866,9 @@
     {
       id: 'longhaul', name: 'Long Haul',
       dests: [
-        { id: 'cancun',   name: 'Cancún — Mexico',            country: 'MX', countryName: 'Mexico',             cost: 1145, price: 1795, gateways: ['lgw','man'] },
-        { id: 'puntacana',name: 'Punta Cana — Dominican Rep.', country: 'DO', countryName: 'Dominican Republic', cost: 1098, price: 1725, gateways: ['lgw','man'] },
-        { id: 'dubai',    name: 'Dubai — UAE',                country: 'AE', countryName: 'United Arab Emirates', cost: 968, price: 1545, gateways: ['lgw','man','bhx'] },
+        { id: 'cancun',   name: 'Cancún — Mexico',            country: 'MX', countryName: 'Mexico',             cost: 1145, price: 1795, gateways: ['lgw','man','bhx','gla'] },
+        { id: 'puntacana',name: 'Punta Cana — Dominican Rep.', country: 'DO', countryName: 'Dominican Republic', cost: 1098, price: 1725, gateways: ['lgw','man','bhx','ncl'] },
+        { id: 'dubai',    name: 'Dubai — UAE',                country: 'AE', countryName: 'United Arab Emirates', cost: 968, price: 1545, gateways: ['lgw','man','bhx','stn'] },
       ],
     },
   ];
@@ -2897,17 +2884,6 @@
     });
   });
   function destsInRegion(region) { return region.dests; }
-
-  // ── Pax-type rate ladder (derived from the Adult rate) ──
-  // The engine prices the Adult pax; other pax types are derived multipliers.
-  const RATE_TYPES = {
-    adult:  { label: 'Adult',       mult: 1.00 },
-    child:  { label: 'Child',       mult: 0.70 },
-    infant: { label: 'Infant',      mult: 0.12 },
-    single: { label: 'Single supp', mult: 1.35 },
-  };
-  let rateView = 'adult';
-  function rateMult() { return RATE_TYPES[rateView].mult; }
 
   // ── Demand Levels (from the customisable-rules table) ──
   // Observed demand vs baseline/expected (in ppt) maps to DL1..DL5.
@@ -2990,15 +2966,12 @@
     // Sessions on this destination x gateway product page over the booking
     // window. This is the demand signal — there is no flight capacity model.
     const gwShare = { lgw: 0.34, man: 0.24, bhx: 0.15, gla: 0.09, brs: 0.08, stn: 0.10, ncl: 0.08, edi: 0.08 }[ticket.id] || 0.10;
-    const destPull = park.region.id === 'longhaul' ? 0.55 : 1.0;
     const sessions = Math.max(120, Math.round(
-      9000 * gwShare * destPull * dayMult * wxMult * pick(r, 0.72, 1.28)
+      9000 * gwShare * dayMult * wxMult * pick(r, 0.72, 1.28)
     ));
 
-    // Conversion: sessions -> bookings. Long haul converts lower (longer
-    // consideration), peak dates convert higher.
-    const convBase = (park.region.id === 'longhaul' ? 2.6 : 4.4)
-      + (date.isHoliday ? 0.7 : 0) + (date.isWeekend ? 0.3 : 0);
+    // Conversion: sessions -> bookings. Peak departures convert a little higher.
+    const convBase = 4.4 + (date.isHoliday ? 0.7 : 0) + (date.isWeekend ? 0.3 : 0);
     const conversion = Math.round(Math.max(0.8, convBase * pick(r, 0.68, 1.32)) * 100) / 100;
 
     const sold = Math.max(4, Math.round(sessions * conversion / 100));
@@ -3043,6 +3016,16 @@
 
     const marginPct = Math.round(((current - cost) / current) * 1000) / 10;
 
+    // ── Supplements ──
+    // Board upgrades, room upgrades, transfers, bags and single-occupancy
+    // supplements. Attached to a share of bookings, and carrying a much
+    // richer margin than the base package — which is exactly why the Sup
+    // column sits next to the package margin.
+    const supRng = rngFor('sup|' + key);
+    const supAttach   = pick(supRng, 0.28, 0.62);                       // share of bookings taking one
+    const supPerPax   = Math.round(current * pick(supRng, 0.06, 0.16)); // supplement revenue pp
+    const supMarginPct = Math.round(pick(supRng, 38, 68) * 10) / 10;    // margin on that revenue
+
     // ── Recommendation engine (rules-driven, on MARGIN) ──
     // Demand level drives the margin move: high observed demand earns more
     // margin, weak demand gives it back to stimulate conversion. DL3 holds,
@@ -3072,6 +3055,9 @@
       cost, current, marginPct, recMarginPct, recPrice,
       marginGbp: current - cost,
       revenue: sold * current,
+      supAttach, supPerPax, supMarginPct,
+      supRevenue: sold * supAttach * supPerPax,
+      supMarginGbp: sold * supAttach * supPerPax * (supMarginPct / 100),
     };
   }
 
@@ -3088,6 +3074,7 @@
   function aggregate(rows) {
     let sold = 0, fcst = 0, revenue = 0, sessions = 0, sessionsRate = 0;
     let costRev = 0, recRev = 0;
+    let supRev = 0, supMargin = 0;
     let rosNum = 0, rosDen = 0;
     let demandNum = 0, demandExNum = 0, demandDen = 0;
     let yoyNum = 0, yoyDen = 0;
@@ -3099,6 +3086,8 @@
       revenue  += row.revenue;
       costRev  += row.sold * row.cost;
       recRev   += row.sold * recPriceOf(row);
+      supRev   += row.supRevenue;
+      supMargin += row.supMarginGbp;
       rosNum   += row.ros * row.revenue;  rosDen += row.revenue;
       demandNum   += row.demand * row.sessions;
       demandExNum += row.demandExWx * row.sessions;
@@ -3114,6 +3103,9 @@
       recPrice: sold ? recRev / sold : 0,
       marginPct, recMarginPct,
       marginGbp: revenue - costRev,
+      supRevenue: supRev,
+      supMarginGbp: supMargin,
+      supMarginPct: supRev ? Math.round((supMargin / supRev) * 1000) / 10 : 0,
       deltaPpt: Math.round((recMarginPct - marginPct) * 10) / 10,
       ros: rosDen ? Math.round(rosNum / rosDen) : 0,
       demand:     demandDen ? Math.round(demandNum / demandDen) : 0,
@@ -3124,9 +3116,38 @@
     };
   }
 
+  // ── Product layer ────────────────────────────────────────────
+  // The table has no date column: a row is a PRODUCT (destination x gateway)
+  // aggregated across every departure in the current date range. Decisions —
+  // accept, reject, override — are taken on the product and therefore apply
+  // to the whole horizon. The Calendar view is where the date dimension lives.
+  function productKey(dest, gw) { return dest.name + ' — ' + gw.label; }
+
+  // Leaves belonging to one product, across the dates currently in range.
+  function productLeaves(dest, gw) {
+    return DATES.filter(dateInDateRange).map(d => ALL_LEAVES[stateKey(dest, gw, d)]);
+  }
+  function productLeavesFor(dest) {
+    const out = [];
+    dest.tickets.forEach(gw => out.push(...productLeaves(dest, gw)));
+    return out;
+  }
+  function productLeavesForRegion(region) {
+    const out = [];
+    region.dests.forEach(d => out.push(...productLeavesFor(d)));
+    return out;
+  }
+
+  // Sold-weighted recommendation for a product, before any override.
+  function productBaseRec(dest, gw) {
+    let num = 0, den = 0;
+    productLeaves(dest, gw).forEach(l => { num += l.recMarginPct * l.sold; den += l.sold; });
+    return den ? Math.round((num / den) * 10) / 10 : 0;
+  }
+
   // Recommended margin for a leaf, honouring any manual override.
   function recMarginOf(leaf) {
-    const st = rowStates[leaf.stateKey];
+    const st = rowStates[productKey(leaf.park, leaf.ticket)];
     return (st && typeof st.overrideValue === 'number') ? st.overrideValue : leaf.recMarginPct;
   }
   function recPriceOf(leaf) { return marginPctToPrice(leaf.cost, recMarginOf(leaf)); }
@@ -3208,8 +3229,8 @@
   const rowStates = {};   // keyed by stateKey
   // Everything starts collapsed.
   const expanded = {
-    regions: new Set(),   // `${regionId}|${dateISO}`
-    dests:   new Set(),   // `${destId}|${dateISO}`
+    regions: new Set(),   // regionId
+    dests:   new Set(),   // destId
   };
 
   // ── Compute all rows once, keyed for state lookups ──
@@ -3404,9 +3425,6 @@
     if (value < -1) return 'cell-neg';
     return '';
   }
-  function weatherCell(wx) {
-    return '<span class="weather-cell"><span class="weather-icon">' + wx.icon + '</span><span>' + wx.temp + '°</span></span>';
-  }
 
   // ── Reason code dropdown (sits next to the accept/reject buttons) ──
   const REASON_CODES = ['Autopilot', 'DL Increase', 'DL Decrease', 'Margin floor', 'Holiday'];
@@ -3422,6 +3440,19 @@
   function marginPill(pct) {
     const cls = pct >= 30 ? 'mg-high' : pct >= 20 ? 'mg-mid' : pct >= 12 ? 'mg-low' : 'mg-thin';
     return '<span class="margin-pill ' + cls + '">' + pct.toFixed(1) + '%</span>';
+  }
+  function supCell(pct, gbp) {
+    return '<span class="sup-cell" title="Supplement margin ' + pct.toFixed(1) + '% · ' + fmtGbpK(gbp) + ' over the period">' +
+      '<span class="sup-pct">' + pct.toFixed(1) + '%</span>' +
+      '<span class="sup-gbp">' + fmtGbpK(gbp) + '</span></span>';
+  }
+  function productMarginPct(dest, gw) { return aggregate(productLeaves(dest, gw)).marginPct; }
+  function productKeysIn(dests) {
+    const out = [];
+    dests.filter(parkMatchesFilter).forEach(d => d.tickets.forEach(gw => {
+      if (productPasses(d, gw)) out.push(productKey(d, gw));
+    }));
+    return out;
   }
   function conversionCell(pct) {
     return '<span class="conv-cell">' + pct.toFixed(2) + '%</span>';
@@ -3516,48 +3547,32 @@
   }
 
   // Sort-value for a leaf row, by sort key.
-  function leafSortValueForKey(leaf, key) {
-    if (key === 'name') return leaf.ticket.label.toLowerCase();
-    if (key === 'date') return leaf.date.iso;
-    const recM = recMarginOf(leaf);
-    switch (key) {
-      case 'sessions':   return leaf.sessions;
-      case 'conversion': return leaf.conversion;
-      case 'ros':        return leaf.ros;
-      case 'sold':       return leaf.sold;
-      case 'fcst':       return leaf.fcst;
-      case 'pctOfFcst':  return leaf.pctOfFcst;
-      case 'demand':     return leaf.demand;
-      case 'yoy':        return leaf.yoy;
-      case 'cost':       return leaf.cost;
-      case 'price':      return leaf.current;
-      case 'margin':     return leaf.marginPct;
-      case 'recMargin':  return recM;
-      case 'deltaPpt':   return recM - leaf.marginPct;
-      case 'recAction':  return recM > leaf.marginPct ? 1 : (recM < leaf.marginPct ? -1 : 0);
-      case 'alertCount': return (leaf.alerts && leaf.alerts.length) ? leaf.alerts.length : null;
+  // Sort value for any table scope: region, destination, or product.
+  function scopeSortValue(scope, key, kind) {
+    if (key === 'name') {
+      if (kind === 'product') return scope.gw.label.toLowerCase();
+      return scope.name.toLowerCase();
     }
-    return null;
-  }
-
-  // Sort-value for an aggregate row (destination or region).
-  function aggSortValueForKey(scope, date, key, isRegion) {
-    if (key === 'name') return scope.name.toLowerCase();
-    if (key === 'date') return date.iso;
-    const leaves = isRegion ? leavesForRegion(scope, date) : leavesFor(scope, date);
+    const leaves = kind === 'region'  ? productLeavesForRegion(scope)
+                 : kind === 'dest'    ? productLeavesFor(scope)
+                 : productLeaves(scope.dest, scope.gw);
     const agg = aggregate(leaves);
     if (key === 'alertCount') {
-      const direct = aggregateGroupAAlerts(agg, isRegion ? scope.dests[0].id : scope.id);
-      const unioned = unionAlertsWithRollup(direct, leaves);
-      return unioned.length ? unioned.length : null;
+      const anchorId = kind === 'region' ? scope.dests[0].id : (kind === 'dest' ? scope.id : scope.dest.id);
+      const direct = kind === 'product' ? [] : aggregateGroupAAlerts(agg, anchorId);
+      const n = unionAlertsWithRollup(direct, leaves).length;
+      return n || null;
     }
-    if (key === 'recAction') {
-      let net = 0;
-      leaves.forEach(l => {
-        const a = recActionFor(l);
-        if (a === 'Increase') net++; else if (a === 'Decrease') net--;
-      });
-      return net;
+    if (key === 'recMargin' || key === 'deltaPpt' || key === 'recAction') {
+      let recM = agg.recMarginPct;
+      if (kind === 'product') {
+        const st = rowStates[productKey(scope.dest, scope.gw)];
+        if (st && typeof st.overrideValue === 'number') recM = st.overrideValue;
+      }
+      const d = recM - agg.marginPct;
+      if (key === 'recMargin') return recM;
+      if (key === 'deltaPpt')  return d;
+      return d > 0.05 ? 1 : (d < -0.05 ? -1 : 0);
     }
     switch (key) {
       case 'sessions':   return agg.sessions;
@@ -3568,11 +3583,8 @@
       case 'pctOfFcst':  return agg.pctOfFcst;
       case 'demand':     return agg.demand;
       case 'yoy':        return agg.yoy;
-      case 'cost':       return agg.cost;
-      case 'price':      return agg.price;
       case 'margin':     return agg.marginPct;
-      case 'recMargin':  return agg.recMarginPct;
-      case 'deltaPpt':   return agg.deltaPpt;
+      case 'supMargin':  return agg.supMarginPct;
     }
     return null;
   }
@@ -3602,76 +3614,62 @@
   }
 
   // ── Render ──────────────────────────────────────────────────
-  // Three levels: Region -> Destination -> Gateway, repeated per departure
-  // date. Parent rows are true roll-ups of the leaves beneath them.
+  // Three levels: Region -> Destination -> Gateway. No date column — every row
+  // aggregates the departures currently in range, and the Calendar view is
+  // where the date dimension lives.
   function render() {
     const body = document.getElementById('srtBody');
     const out  = [];
-
     const sortKey = listSort.key;
     const isText  = getListSortType() === 'text';
-    const useAggSort = sortKey && sortKey !== 'date' && listSort.dir;
+    const useSort = sortKey && listSort.dir;
 
-    let visibleDates = DATES.filter(dateInDateRange);
-    if (sortKey === 'date' && listSort.dir) {
-      visibleDates = sortByKey(visibleDates, d => d.iso, true);
-    }
+    let regionsToIter = REGIONS.filter(anyProductPassesInRegion);
+    if (useSort) regionsToIter = sortByKey(regionsToIter, rg => scopeSortValue(rg, sortKey, 'region'), isText);
 
-    visibleDates.forEach(date => {
-      let regionsToIter = REGIONS.filter(rg => anyLeafPassesInRegion(rg, date));
-      if (useAggSort) {
-        regionsToIter = sortByKey(regionsToIter, rg => aggSortValueForKey(rg, date, sortKey, true), isText);
-      }
+    regionsToIter.forEach(region => {
+      const regionLeaves = productLeavesForRegion(region);
+      const regionOpen   = expanded.regions.has(region.id);
+      out.push(regionRowHtml(region, aggregate(regionLeaves), regionOpen, regionLeaves));
+      if (!regionOpen) return;
 
-      regionsToIter.forEach(region => {
-        const regionLeaves = leavesForRegion(region, date);
-        const regionAgg    = aggregate(regionLeaves);
-        const regionOpen   = expanded.regions.has(region.id + '|' + date.iso);
-        out.push(regionRowHtml(region, date, regionAgg, regionOpen, regionLeaves));
-        if (!regionOpen) return;
+      let destsToIter = region.dests.filter(anyProductPassesIn);
+      if (useSort) destsToIter = sortByKey(destsToIter, d => scopeSortValue(d, sortKey, 'dest'), isText);
 
-        // ── Destination rows ──
-        let destsToIter = region.dests.filter(d => anyLeafPassesIn(d, date));
-        if (useAggSort) {
-          destsToIter = sortByKey(destsToIter, d => aggSortValueForKey(d, date, sortKey, false), isText);
-        }
+      destsToIter.forEach(dest => {
+        const destLeaves = productLeavesFor(dest);
+        const destOpen   = expanded.dests.has(dest.id);
+        out.push(destRowHtml(dest, aggregate(destLeaves), destOpen, destLeaves));
+        if (!destOpen) return;
 
-        destsToIter.forEach(dest => {
-          const destLeaves = leavesFor(dest, date);
-          const destAgg    = aggregate(destLeaves);
-          const destOpen   = expanded.dests.has(dest.id + '|' + date.iso);
-          out.push(destRowHtml(dest, date, destAgg, destOpen, destLeaves));
-          if (!destOpen) return;
-
-          // ── Gateway leaf rows ──
-          let leavesToIter = destLeaves.filter(leafPasses);
-          if (useAggSort) {
-            leavesToIter = sortByKey(leavesToIter, leaf => leafSortValueForKey(leaf, sortKey), isText);
-          }
-          leavesToIter.forEach(leaf => out.push(leafRowHtml(leaf)));
-        });
+        let gws = dest.tickets.filter(gw => productPasses(dest, gw));
+        if (useSort) gws = sortByKey(gws, gw => scopeSortValue({ dest, gw }, sortKey, 'product'), isText);
+        gws.forEach(gw => out.push(productRowHtml(dest, gw)));
       });
     });
 
     if (!out.length) {
-      out.push('<tr class="srt-empty"><td colspan="19">No matching rows for the current filters.</td></tr>');
+      out.push('<tr class="srt-empty"><td colspan="17">No matching rows for the current filters.</td></tr>');
     }
-
     body.innerHTML = out.join('');
     refreshHeaderCounts();
   }
 
   // Shared trailing cells for an aggregate row (destination or region).
-  function aggTailCells(agg, leafRows) {
-    let recUp = 0, recDown = 0;
+  function aggTailCells(agg, leafRows, scopeLabel) {
+    let up = 0, down = 0;
+    const seen = new Set();
     leafRows.forEach(l => {
-      const a = recActionFor(l);
-      if (a === 'Increase') recUp++; else if (a === 'Decrease') recDown++;
+      const k = productKey(l.park, l.ticket);
+      if (seen.has(k)) return;
+      seen.add(k);
+      const d = recMarginOf(l) - productMarginPct(l.park, l.ticket);
+      if (d > 0.05) up++; else if (d < -0.05) down++;
     });
-    const recSummary = (recUp || recDown)
+    const recSummary = (up || down)
       ? '<span class="rec-action-summary">' +
-          (recUp   ? '<span class="ras-up">'   + recUp   + '↑</span>' : '') +
-          (recDown ? '<span class="ras-down">' + recDown + '↓</span>' : '') +
+          (up   ? '<span class="ras-up">'   + up   + '↑</span>' : '') +
+          (down ? '<span class="ras-down">' + down + '↓</span>' : '') +
         '</span>'
       : '<span class="rec-action-summary ras-flat">—</span>';
     const dTint = tintFor(agg.deltaPpt);
@@ -3686,57 +3684,46 @@
       '<td class="num">' + agg.pctOfFcst + '%</td>' +
       '<td class="num ' + tintFor(agg.yoy) + '">' + signed(agg.yoy, '%') + '</td>' +
 
-      '<td class="num">' + fmtGbp(agg.cost) + '</td>' +
-      '<td class="num">' + fmtGbp(agg.price) + '</td>' +
       '<td class="num">' + marginPill(agg.marginPct) + '</td>' +
+      '<td class="num">' + supCell(agg.supMarginPct, agg.supMarginGbp) + '</td>' +
       '<td class="num ' + dTint + '">' + marginPill(agg.recMarginPct) + '</td>' +
       '<td class="num ' + dTint + '">' + signed(agg.deltaPpt, 'ppt') + '</td>' +
-      '<td class="rec-action-cell">' + recSummary + '</td>'
+      '<td class="rec-action-cell">' + recSummary + '</td>' +
+      '<td class="action-cell"><span class="row-action-meta">' + seen.size + ' ' + scopeLabel + '</span></td>'
     );
   }
 
-  function regionRowHtml(region, date, agg, isExpanded, leafRows) {
-    const nDests = region.dests.length;
-    const direct = aggregateGroupAAlerts(agg, region.dests[0].id);
-    const alerts = unionAlertsWithRollup(direct, leafRows);
-    const passingKeys = leafRows.filter(leafPasses).map(l => l.stateKey);
-    const allSelected = passingKeys.length > 0 && passingKeys.every(k => selectedKeys.has(k));
+  function regionRowHtml(region, agg, isExpanded, leafRows) {
+    const alerts = unionAlertsWithRollup(aggregateGroupAAlerts(agg, region.dests[0].id), leafRows);
+    const keys = productKeysIn(region.dests);
+    const allSelected = keys.length > 0 && keys.every(k => selectedKeys.has(k));
     return (
-      '<tr class="row-region" data-region="' + region.id + '" data-date="' + date.iso + '">' +
-        '<td class="col-select"><input type="checkbox" class="row-select region-select" data-region="' + region.id + '" data-date="' + date.iso + '"' +
-          (allSelected ? ' checked' : '') + ' aria-label="Select all rows for ' + esc(region.name) + ' ' + date.label + '"></td>' +
+      '<tr class="row-region" data-region="' + region.id + '">' +
+        '<td class="col-select"><input type="checkbox" class="row-select region-select" data-region="' + region.id + '"' +
+          (allSelected ? ' checked' : '') + ' aria-label="Select all products in ' + esc(region.name) + '"></td>' +
         '<td class="col-name">' +
           '<span class="accordion-name ' + (isExpanded ? 'expanded' : '') + '" role="button" tabindex="0" data-toggle="region" aria-expanded="' + isExpanded + '">' +
             '<span class="accordion-chev">' +
               '<svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor" aria-hidden="true"><polygon points="3,2 7,5 3,8"/></svg>' +
             '</span>' +
             '<span class="lvl-region-name">' + esc(region.name) + '</span>' +
-            '<span class="row-meta">' + nDests + ' destinations</span>' +
+            '<span class="row-meta">' + region.dests.length + ' destinations</span>' +
           '</span>' +
         '</td>' +
-        '<td class="col-date">' +
-          '<span class="date-num">' + date.label + '</span>' +
-          '<span class="date-dow">' + date.dowLabel + '</span>' +
-          (date.isHoliday ? '<span class="holiday-tag">Holiday</span>' : '') +
-        '</td>' +
-        '<td></td>' +
         alertsCellHtml(alerts) +
-        aggTailCells(agg, leafRows) +
-        '<td class="action-cell"><span class="row-action-meta">' + leafRows.length + ' rows</span></td>' +
+        aggTailCells(agg, leafRows, 'products') +
       '</tr>'
     );
   }
 
-  function destRowHtml(dest, date, agg, isExpanded, leafRows) {
-    const wx = weatherFor(dest.id, date.iso);
-    const direct = aggregateGroupAAlerts(agg, dest.id);
-    const alerts = unionAlertsWithRollup(direct, leafRows);
-    const passingKeys = leafRows.filter(leafPasses).map(l => l.stateKey);
-    const allSelected = passingKeys.length > 0 && passingKeys.every(k => selectedKeys.has(k));
+  function destRowHtml(dest, agg, isExpanded, leafRows) {
+    const alerts = unionAlertsWithRollup(aggregateGroupAAlerts(agg, dest.id), leafRows);
+    const keys = productKeysIn([dest]);
+    const allSelected = keys.length > 0 && keys.every(k => selectedKeys.has(k));
     return (
-      '<tr class="row-dest" data-dest="' + dest.id + '" data-date="' + date.iso + '">' +
-        '<td class="col-select"><input type="checkbox" class="row-select dest-select" data-dest="' + dest.id + '" data-date="' + date.iso + '"' +
-          (allSelected ? ' checked' : '') + ' aria-label="Select all gateways for ' + esc(dest.name) + ' ' + date.label + '"></td>' +
+      '<tr class="row-dest" data-dest="' + dest.id + '">' +
+        '<td class="col-select"><input type="checkbox" class="row-select dest-select" data-dest="' + dest.id + '"' +
+          (allSelected ? ' checked' : '') + ' aria-label="Select all gateways for ' + esc(dest.name) + '"></td>' +
         '<td class="col-name">' +
           '<span class="accordion-name lvl-2 ' + (isExpanded ? 'expanded' : '') + '" role="button" tabindex="0" data-toggle="dest" aria-expanded="' + isExpanded + '">' +
             '<span class="accordion-chev">' +
@@ -3747,85 +3734,79 @@
             '<span class="row-meta">' + dest.tickets.length + ' gateways</span>' +
           '</span>' +
         '</td>' +
-        '<td class="col-date">' +
-          '<span class="date-num">' + date.label + '</span>' +
-          '<span class="date-dow">' + date.dowLabel + '</span>' +
-        '</td>' +
-        '<td>' + weatherCell(wx) + '</td>' +
         alertsCellHtml(alerts) +
-        aggTailCells(agg, leafRows) +
-        '<td class="action-cell"><span class="row-action-meta">' + leafRows.length + ' rows</span></td>' +
+        aggTailCells(agg, leafRows, 'gateways') +
       '</tr>'
     );
   }
 
-  function leafRowHtml(leaf) {
-    const st = rowStates[leaf.stateKey] || {};
+  // ── Product (gateway) row — the editable leaf of the table ──
+  function productRowHtml(dest, gw) {
+    const key = productKey(dest, gw);
+    const leaves = productLeaves(dest, gw);
+    const agg = aggregate(leaves);
+    const st = rowStates[key] || {};
     const stateCls =
       st.state === 'accepted'   ? ' row-accepted' :
       st.state === 'rejected'   ? ' row-rejected' :
       st.state === 'overridden' ? ' row-overridden' : '';
-    const recTint = recTintClass(leaf);
-    const recM = recMarginOf(leaf);
-    const deltaPpt = Math.round((recM - leaf.marginPct) * 10) / 10;
-    const acceptClass = (st.state === 'accepted')   ? 'solid' : (st.state ? 'dim' : '');
-    const rejectClass = (st.state === 'rejected')   ? 'solid' : (st.state ? 'dim' : '');
+    const recM = (typeof st.overrideValue === 'number') ? st.overrideValue : agg.recMarginPct;
+    const deltaPpt = Math.round((recM - agg.marginPct) * 10) / 10;
+    const tint = deltaPpt > 0.05 ? 'cell-pos' : (deltaPpt < -0.05 ? 'cell-neg' : '');
+    const acceptClass = (st.state === 'accepted') ? 'solid' : (st.state ? 'dim' : '');
+    const rejectClass = (st.state === 'rejected') ? 'solid' : (st.state ? 'dim' : '');
     const hasNote = !!(st.note && String(st.note).trim());
-    const expired = noteIsExpired(st);
-    const reasonSelect = reasonSelectHtml(leaf.stateKey, st.reason);
+    const alerts = unionAlertsWithRollup([], leaves);
+    const action = deltaPpt > 0.05 ? 'Increase' : deltaPpt < -0.05 ? 'Decrease' : 'No change';
 
-    let actionInner;
-    if (st.state === 'accepted') {
-      actionInner = '<span class="action-badge b-accepted">Accepted</span>' + actionButtons(acceptClass, rejectClass, hasNote) + reasonSelect;
-    } else if (st.state === 'rejected') {
-      actionInner = '<span class="action-badge b-rejected">Rejected</span>' + actionButtons(acceptClass, rejectClass, hasNote) + reasonSelect;
-    } else if (st.state === 'overridden') {
-      actionInner = '<span class="action-badge b-overridden">Overridden</span>' + actionButtons(acceptClass, rejectClass, hasNote) + reasonSelect;
-    } else if (expired) {
-      actionInner = '<span class="action-badge b-expired">Expired note</span>' + actionButtons('', '', hasNote) + reasonSelect;
-    } else {
-      actionInner = '<span class="pending-chip">Pending</span>' + actionButtons('', '', hasNote) + reasonSelect;
-    }
+    let badge;
+    if (st.state === 'accepted')        badge = '<span class="action-badge b-accepted">Accepted</span>';
+    else if (st.state === 'rejected')   badge = '<span class="action-badge b-rejected">Rejected</span>';
+    else if (st.state === 'overridden') badge = '<span class="action-badge b-overridden">Overridden</span>';
+    else                                badge = '<span class="pending-chip">Pending</span>';
 
+    // Dedicated input cell — always visible, type straight into it.
     const recCell =
-      '<td class="num rec-cell ' + recTint + '" data-key="' + leaf.stateKey + '" title="Click to override the recommended margin">' +
-        PENCIL_SVG + '<span class="rec-value">' + recM.toFixed(1) + '%</span>' +
+      '<td class="num margin-input-cell ' + tint + '">' +
+        '<span class="mi-wrap">' +
+          '<input type="number" class="margin-input' + (typeof st.overrideValue === 'number' ? ' is-override' : '') +
+            '" data-key="' + esc(key) + '" step="0.5" min="2" max="72" value="' + recM.toFixed(1) + '"' +
+            ' aria-label="Recommended margin % for ' + esc(dest.name) + ' ' + esc(gw.label) + '">' +
+          '<span class="mi-unit">%</span>' +
+        '</span>' +
       '</td>';
 
     return (
-      '<tr class="row-leaf' + stateCls + '" data-key="' + leaf.stateKey + '" data-dest="' + leaf.park.id + '" data-date="' + leaf.date.iso + '">' +
-        '<td class="col-select"><input type="checkbox" class="row-select leaf-select" data-key="' + leaf.stateKey + '"' +
-          (selectedKeys.has(leaf.stateKey) ? ' checked' : '') + ' aria-label="Select row"></td>' +
+      '<tr class="row-leaf' + stateCls + '" data-key="' + esc(key) + '" data-dest="' + dest.id + '" data-gw="' + gw.id + '">' +
+        '<td class="col-select"><input type="checkbox" class="row-select leaf-select" data-key="' + esc(key) + '"' +
+          (selectedKeys.has(key) ? ' checked' : '') + ' aria-label="Select row"></td>' +
         '<td class="col-name">' +
           '<span class="leaf-bullet" aria-hidden="true">•</span>' +
-          '<span class="lvl-gw-name">' + esc(leaf.ticket.label) + '</span>' +
-          '<span class="gw-code">' + leaf.ticket.code + '</span>' +
+          '<span class="lvl-gw-name">' + esc(gw.label) + '</span>' +
+          '<span class="gw-code">' + gw.code + '</span>' +
         '</td>' +
-        '<td class="col-date">' +
-          '<span class="date-num">' + leaf.date.label + '</span>' +
-          '<span class="date-dow">' + leaf.date.dowLabel + '</span>' +
-        '</td>' +
-        '<td>' + weatherCell(leaf.wx) + '</td>' +
-        alertsCellHtml(leaf.alerts) +
+        alertsCellHtml(alerts) +
 
-        '<td class="num">' + fmtInt(leaf.sessions) + '</td>' +
-        '<td class="num">' + conversionCell(leaf.conversion) + '</td>' +
-        '<td class="num ' + tintFor(leaf.ros) + '">' + signed(leaf.ros, '%') + '</td>' +
-        '<td class="num">' + demandCell(leaf.demand) + '</td>' +
+        '<td class="num">' + fmtInt(agg.sessions) + '</td>' +
+        '<td class="num">' + conversionCell(agg.conversion) + '</td>' +
+        '<td class="num ' + tintFor(agg.ros) + '">' + signed(agg.ros, '%') + '</td>' +
+        '<td class="num">' + demandCell(agg.demand) + '</td>' +
 
-        '<td class="num">' + fmtInt(leaf.sold) + '</td>' +
-        '<td class="num">' + fmtInt(leaf.fcst) + '</td>' +
-        '<td class="num">' + leaf.pctOfFcst + '%</td>' +
-        '<td class="num ' + tintFor(leaf.yoy) + '">' + signed(leaf.yoy, '%') + '</td>' +
+        '<td class="num">' + fmtInt(agg.sold) + '</td>' +
+        '<td class="num">' + fmtInt(agg.fcst) + '</td>' +
+        '<td class="num">' + agg.pctOfFcst + '%</td>' +
+        '<td class="num ' + tintFor(agg.yoy) + '">' + signed(agg.yoy, '%') + '</td>' +
 
-        '<td class="num">' + fmtGbp(leaf.cost) + '</td>' +
-        '<td class="num">' + fmtGbp(leaf.current) + '</td>' +
-        '<td class="num">' + marginPill(leaf.marginPct) + '</td>' +
+        '<td class="num">' + marginPill(agg.marginPct) + '</td>' +
+        '<td class="num">' + supCell(agg.supMarginPct, agg.supMarginGbp) + '</td>' +
         recCell +
-        '<td class="num ' + recTint + '">' + signed(deltaPpt, 'ppt') + '</td>' +
-        '<td class="rec-action-cell">' + recActionChip(recActionFor(leaf)) + '</td>' +
+        '<td class="num ' + tint + '">' + signed(deltaPpt, 'ppt') + '</td>' +
+        '<td class="rec-action-cell">' + recActionChip(action) + '</td>' +
         '<td class="action-cell">' +
-          '<span class="action-cell-inner">' + actionInner + '</span>' +
+          '<span class="action-cell-inner">' + badge +
+            actionButtons(acceptClass, rejectClass, hasNote) +
+            reasonSelectHtml(key, st.reason) +
+          '</span>' +
         '</td>' +
       '</tr>'
     );
@@ -3842,29 +3823,29 @@
 
   // ── Header counts ──
   function refreshHeaderCounts() {
-    let pendingLeaves = 0;
-    DATES.forEach(date => {
-      PARKS.forEach(dest => {
-        if (!expanded.dests.has(dest.id + '|' + date.iso)) return;
-        if (!expanded.regions.has(dest.region.id + '|' + date.iso)) return;
-        dest.tickets.forEach(t => {
-          const st = rowStates[stateKey(dest, t, date)];
-          if (!st || (!st.state && typeof st.overrideValue !== 'number')) pendingLeaves++;
+    let pending = 0;
+    REGIONS.filter(anyProductPassesInRegion).forEach(region => {
+      if (!expanded.regions.has(region.id)) return;
+      region.dests.filter(anyProductPassesIn).forEach(dest => {
+        if (!expanded.dests.has(dest.id)) return;
+        dest.tickets.forEach(gw => {
+          if (!productPasses(dest, gw)) return;
+          const st = rowStates[productKey(dest, gw)];
+          if (!st || (!st.state && typeof st.overrideValue !== 'number')) pending++;
         });
       });
     });
-    let committableTotal = 0;
+    let committable = 0;
     Object.keys(rowStates).forEach(k => {
       const st = rowStates[k];
-      if (st && (st.state || typeof st.overrideValue === 'number')) committableTotal++;
+      if (st && (st.state || typeof st.overrideValue === 'number')) committable++;
     });
-
     const accBtn = document.getElementById('acceptAllBtn');
     const cmtBtn = document.getElementById('commitBtn');
-    accBtn.querySelector('.accept-all-label').textContent = 'Accept all (' + pendingLeaves + ')';
-    cmtBtn.querySelector('.commit-label').textContent = 'Commit (' + committableTotal + ')';
-    accBtn.disabled = pendingLeaves === 0;
-    cmtBtn.disabled = committableTotal === 0;
+    accBtn.querySelector('.accept-all-label').textContent = 'Accept all (' + pending + ')';
+    cmtBtn.querySelector('.commit-label').textContent = 'Commit (' + committable + ')';
+    accBtn.disabled = pending === 0;
+    cmtBtn.disabled = committable === 0;
   }
 
   // ── Toast ──
@@ -3881,37 +3862,35 @@
   function updateBulkBtn() {
     const btn = document.getElementById('bulkBtn');
     btn.querySelector('.bulk-btn-label').textContent = 'Bulk margin (' + selectedKeys.size + ')';
-    btn.disabled = selectedKeys.size === 0;
+    // Deliberately never disabled: clicking with nothing selected explains
+    // what to do rather than looking broken.
+    btn.disabled = false;
+    btn.classList.toggle('is-idle', selectedKeys.size === 0);
   }
 
   // ── Event delegation: accordion toggles + action buttons + rec edit ──
   const bodyEl = document.getElementById('srtBody');
 
-  // Selection checkboxes + reason dropdowns (change events)
-  function setSelection(leaves, on) {
-    leaves.filter(leafPasses).forEach(l => {
-      if (on) selectedKeys.add(l.stateKey); else selectedKeys.delete(l.stateKey);
-    });
+  // Selection checkboxes + reason dropdowns + margin inputs (change events)
+  function setSelection(keys, on) {
+    keys.forEach(k => { if (on) selectedKeys.add(k); else selectedKeys.delete(k); });
   }
   bodyEl.addEventListener('change', e => {
     const leafSel = e.target.closest('input.leaf-select');
     if (leafSel) {
-      if (leafSel.checked) selectedKeys.add(leafSel.dataset.key);
-      else selectedKeys.delete(leafSel.dataset.key);
+      setSelection([leafSel.dataset.key], leafSel.checked);
       render(); updateBulkBtn(); return;
     }
     const destSel = e.target.closest('input.dest-select');
     if (destSel) {
       const dest = PARKS.find(p => p.id === destSel.dataset.dest);
-      const date = DATES.find(d => d.iso === destSel.dataset.date);
-      if (dest && date) setSelection(leavesFor(dest, date), destSel.checked);
+      if (dest) setSelection(productKeysIn([dest]), destSel.checked);
       render(); updateBulkBtn(); return;
     }
     const regionSel = e.target.closest('input.region-select');
     if (regionSel) {
       const region = REGIONS.find(r => r.id === regionSel.dataset.region);
-      const date = DATES.find(d => d.iso === regionSel.dataset.date);
-      if (region && date) setSelection(leavesForRegion(region, date), regionSel.checked);
+      if (region) setSelection(productKeysIn(region.dests), regionSel.checked);
       render(); updateBulkBtn(); return;
     }
     const reasonSel = e.target.closest('select.reason-select');
@@ -3919,18 +3898,65 @@
       const key = reasonSel.dataset.key;
       const st = rowStates[key] || (rowStates[key] = {});
       if (reasonSel.value) st.reason = reasonSel.value; else delete st.reason;
-      if (!st.state && typeof st.overrideValue !== 'number' && !st.note && !st.reason) delete rowStates[key];
+      cleanupState(key);
       render();
     }
   });
 
-  // Select-all header checkbox — every leaf passing the current filters
+  // Resolve a product key back to its destination + gateway.
+  function productFromKey(key) {
+    for (const d of PARKS) for (const gw of d.tickets) if (productKey(d, gw) === key) return { dest: d, gw };
+    return null;
+  }
+  function baseRecFor(key) {
+    const pr = productFromKey(key);
+    return pr ? aggregate(productLeaves(pr.dest, pr.gw)).recMarginPct : 0;
+  }
+  function currentMarginFor(key) {
+    const pr = productFromKey(key);
+    return pr ? aggregate(productLeaves(pr.dest, pr.gw)).marginPct : 0;
+  }
+  function cleanupState(key) {
+    const st = rowStates[key];
+    if (st && !st.state && typeof st.overrideValue !== 'number' && !st.note && !st.reason) delete rowStates[key];
+  }
+
+  // Dedicated margin input cells — commit on change/blur, Enter to confirm.
+  function commitMarginInput(input) {
+    const key = input.dataset.key;
+    const n = parseFloat(input.value);
+    const st = rowStates[key] || (rowStates[key] = {});
+    const base = baseRecFor(key);
+    if (isNaN(n)) { render(); return; }
+    const val = Math.max(2, Math.min(72, Math.round(n * 10) / 10));
+    if (Math.abs(val - base) < 0.05) {
+      delete st.overrideValue;
+      if (st.state === 'overridden') delete st.state;
+    } else {
+      st.overrideValue = val;
+      st.state = 'overridden';
+      showToast('Margin set to ' + val.toFixed(1) + '% — ' + key);
+    }
+    cleanupState(key);
+    render();
+    updateBulkBtn();
+  }
+  bodyEl.addEventListener('change', e => {
+    const mi = e.target.closest('input.margin-input');
+    if (mi) commitMarginInput(mi);
+  });
+  bodyEl.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && e.target.classList.contains('margin-input')) {
+      e.preventDefault();
+      e.target.blur();
+    }
+  });
+
+  // Select-all header checkbox — every product passing the current filters
   document.getElementById('selectAllRows').addEventListener('change', e => {
     const check = e.target.checked;
-    DATES.filter(dateInDateRange).forEach(date => {
-      REGIONS.filter(regionMatchesFilter).forEach(region => {
-        setSelection(leavesForRegion(region, date), check);
-      });
+    REGIONS.filter(anyProductPassesInRegion).forEach(region => {
+      setSelection(productKeysIn(region.dests), check);
     });
     render();
     updateBulkBtn();
@@ -3941,7 +3967,7 @@
     const rToggle = e.target.closest('[data-toggle="region"]');
     if (rToggle) {
       const tr = rToggle.closest('tr');
-      const k = tr.dataset.region + '|' + tr.dataset.date;
+      const k = tr.dataset.region;
       if (expanded.regions.has(k)) expanded.regions.delete(k);
       else expanded.regions.add(k);
       render();
@@ -3950,7 +3976,7 @@
     const dToggle = e.target.closest('[data-toggle="dest"]');
     if (dToggle) {
       const tr = dToggle.closest('tr');
-      const k = tr.dataset.dest + '|' + tr.dataset.date;
+      const k = tr.dataset.dest;
       if (expanded.dests.has(k)) expanded.dests.delete(k);
       else expanded.dests.add(k);
       render();
@@ -3990,19 +4016,18 @@
     const st = rowStates[key] || (rowStates[key] = {});
     if (st.state === 'accepted') { delete st.state; }
     else { st.state = 'accepted'; delete st.overrideValue; }
-    if (!st.state && typeof st.overrideValue !== 'number' && !st.note && !st.reason) delete rowStates[key];
+    cleanupState(key);
     render();
   }
   function toggleReject(key) {
     const st = rowStates[key] || (rowStates[key] = {});
     if (st.state === 'rejected') { delete st.state; }
     else { st.state = 'rejected'; delete st.overrideValue; }
-    if (!st.state && typeof st.overrideValue !== 'number' && !st.note && !st.reason) delete rowStates[key];
+    cleanupState(key);
     render();
   }
 
   function enterRecEdit(cell) {
-    if (rateView !== 'adult') return;   // derived rates are read-only
     const key = cell.dataset.key;
     const leaf = ALL_LEAVES[key];
     if (!leaf) return;
@@ -4098,12 +4123,13 @@
   // ── Accept all + Commit ──
   document.getElementById('acceptAllBtn').addEventListener('click', () => {
     let n = 0;
-    DATES.forEach(date => {
-      PARKS.forEach(dest => {
-        if (!expanded.dests.has(dest.id + '|' + date.iso)) return;
-        if (!expanded.regions.has(dest.region.id + '|' + date.iso)) return;
-        dest.tickets.forEach(t => {
-          const key = stateKey(dest, t, date);
+    REGIONS.filter(anyProductPassesInRegion).forEach(region => {
+      if (!expanded.regions.has(region.id)) return;
+      region.dests.filter(anyProductPassesIn).forEach(dest => {
+        if (!expanded.dests.has(dest.id)) return;
+        dest.tickets.forEach(gw => {
+          if (!productPasses(dest, gw)) return;
+          const key = productKey(dest, gw);
           const st = rowStates[key];
           if (!st || (!st.state && typeof st.overrideValue !== 'number')) {
             rowStates[key] = Object.assign({}, st || {}, { state: 'accepted' });
@@ -4113,7 +4139,7 @@
       });
     });
     render();
-    showToast('Accepted ' + n + ' margin change' + (n === 1 ? '' : 's'));
+    showToast('Accepted ' + n + ' margin recommendation' + (n === 1 ? '' : 's'));
   });
 
   // ─────────────────────────────────────────────────────────────
@@ -4126,24 +4152,25 @@
   // openModal({ level, key })              ← leaf level (key = stateKey)
   // openModal({ level, parkId, dateIso })  ← park level
   function openModal(opts) {
-    let park = null, leaf = null, date = null, region = null;
-    if (opts.level === 'leaf') {
-      leaf = ALL_LEAVES[opts.key];
-      if (!leaf) return;
-      park = leaf.park; date = leaf.date; region = park.region;
-    } else if (opts.level === 'region') {
-      region = REGIONS.find(r => r.id === opts.regionId);
-      if (!region) return;
-      date = DATES.find(d => d.iso === opts.dateIso);
-      if (!date) return;
-    } else {
+    let park = null, gw = null, region = null, leaves = [];
+    if (opts.level === 'product') {
+      park = PARKS.find(p => p.id === opts.destId);
+      gw   = park && park.tickets.find(t => t.id === opts.gwId);
+      if (!park || !gw) return;
+      region = park.region;
+      leaves = productLeaves(park, gw);
+    } else if (opts.level === 'dest') {
       park = PARKS.find(p => p.id === opts.destId);
       if (!park) return;
       region = park.region;
-      date = DATES.find(d => d.iso === opts.dateIso);
-      if (!date) return;
+      leaves = productLeavesFor(park);
+    } else {
+      region = REGIONS.find(r => r.id === opts.regionId);
+      if (!region) return;
+      leaves = productLeavesForRegion(region);
     }
-    activeModal  = { level: opts.level, park, leaf, date, region };
+    if (!leaves.length) return;
+    activeModal = { level: opts.level, park, gw, region, leaves };
     lmOverrideValue = null;
     renderModal();
     lmBackdrop.classList.add('is-open');
@@ -4165,13 +4192,7 @@
   });
 
   // Resolve the leaves that participate in the modal for the active context.
-  function modalLeaves() {
-    if (!activeModal) return [];
-    const { level, park, leaf, date, region } = activeModal;
-    if (level === 'leaf') return [leaf];
-    if (level === 'region') return leavesForRegion(region, date);
-    return leavesFor(park, date);
-  }
+  function modalLeaves() { return activeModal ? activeModal.leaves : []; }
 
   // Aggregate modal data: sum child curves so the aggregate visibly equals
   // the sum of its children at every point.
@@ -4386,100 +4407,70 @@
   // ── Modal renderer (handles park / leaf levels) ──
   function renderModal() {
     if (!activeModal) return;
-    const { level, park, leaf, date } = activeModal;
-    const leaves = modalLeaves();
+    const { level, park, gw, region, leaves } = activeModal;
     const m = aggregateModalData(leaves);
-    const wx = weatherFor(park.id, date.iso);
+    const agg = aggregate(leaves);
+    const nDates = DATES.filter(dateInDateRange).length;
 
-    let title, subtitle;
-    if (level === 'leaf') {
-      title = esc(park.name) + ' — ' + esc(leaf.ticket.label);
-      subtitle = esc(date.label) + ' ' + esc(date.dowLabel) +
-        (date.isHoliday ? ' · Holiday' : '') +
-        ' · ' + esc(region.name) + ' · ' + esc(park.countryName);
-    } else if (level === 'region') {
-      title = esc(region.name);
-      subtitle = esc(date.label) + ' ' + esc(date.dowLabel) +
-        (date.isHoliday ? ' · Holiday' : '') +
-        ' · ' + region.dests.length + ' destinations · aggregate';
-    } else {
+    let title, subtitle, key = null;
+    if (level === 'product') {
+      title = esc(park.name) + ' — ' + esc(gw.label);
+      key = productKey(park, gw);
+      subtitle = esc(region.name) + ' · ' + esc(park.countryName) + ' · ' + nDates + ' departures in range';
+    } else if (level === 'dest') {
       title = esc(park.name);
-      subtitle = esc(date.label) + ' ' + esc(date.dowLabel) +
-        (date.isHoliday ? ' · Holiday' : '') +
-        ' · ' + park.tickets.length + ' gateways · aggregate';
+      subtitle = esc(region.name) + ' · ' + park.tickets.length + ' gateways · ' + nDates + ' departures · aggregate';
+    } else {
+      title = esc(region.name);
+      subtitle = region.dests.length + ' destinations · ' + nDates + ' departures · aggregate';
     }
 
-    const wxDesc = {
-      sun: 'Settled and sunny', mixed: 'Partly cloudy', cloud: 'Cloudy', rain: 'Unsettled',
-    }[wx.kind] || '';
+    const st = key ? (rowStates[key] || {}) : {};
+    const recM = (key && typeof st.overrideValue === 'number') ? st.overrideValue : agg.recMarginPct;
+    const deltaPpt = Math.round((recM - agg.marginPct) * 10) / 10;
+    const pctClass = deltaPpt > 0.05 ? 'cell-pos' : (deltaPpt < -0.05 ? 'cell-neg' : 'cell-neutral');
+    const stateTag =
+      st.state === 'accepted'   ? '<span class="lm-state-tag b-accepted">Accepted</span>' :
+      st.state === 'rejected'   ? '<span class="lm-state-tag b-rejected">Rejected</span>' :
+      st.state === 'overridden' ? '<span class="lm-state-tag b-overridden">Overridden</span>' : '';
 
-    // Margin panel: editable at gateway level, read-only above it.
-    let recPanelHtml;
-    if (level === 'leaf') {
-      const st = rowStates[leaf.stateKey] || {};
-      const recM = recMarginOf(leaf);
-      const deltaPpt = Math.round((recM - leaf.marginPct) * 10) / 10;
-      const pendingOverride = lmOverrideValue;
-      const pctClass = deltaPpt > 0 ? 'cell-pos' : (deltaPpt < 0 ? 'cell-neg' : 'cell-neutral');
+    let recPanelHtml =
+      '<div class="lm-panel">' +
+        '<div class="lm-panel-title">Margin recommendation</div>' + stateTag +
+        '<div class="lm-rec-row"><span class="label">Package margin</span><span class="value">' + agg.marginPct.toFixed(1) + '%</span></div>' +
+        '<div class="lm-rec-row"><span class="label">Supplement margin</span><span class="value">' + agg.supMarginPct.toFixed(1) + '% · ' + fmtGbpK(agg.supMarginGbp) + '</span></div>' +
+        '<div class="lm-rec-row"><span class="label">Recommended margin</span><span class="value">' + recM.toFixed(1) + '%</span></div>' +
+        '<div class="lm-rec-row"><span class="label">Change</span><span class="value pct ' + pctClass + '">' + signed(deltaPpt, 'ppt') + '</span></div>' +
+        '<div class="lm-rec-row"><span class="label">Margin banked</span><span class="value">' + fmtGbpK(agg.marginGbp) + '</span></div>';
+    if (level === 'product') {
       const acceptSolid = st.state === 'accepted' ? 'solid' : '';
       const rejectSolid = st.state === 'rejected' ? 'solid' : '';
-      const stateTag =
-        st.state === 'accepted'   ? '<span class="lm-state-tag b-accepted">Accepted</span>' :
-        st.state === 'rejected'   ? '<span class="lm-state-tag b-rejected">Rejected</span>' :
-        st.state === 'overridden' ? '<span class="lm-state-tag b-overridden">Overridden</span>' : '';
-      recPanelHtml =
-        '<div class="lm-panel">' +
-          '<div class="lm-panel-title">Margin recommendation</div>' +
-          stateTag +
-          '<div class="lm-rec-row"><span class="label">Package cost</span><span class="value">' + fmtGbp(leaf.cost) + ' pp</span></div>' +
-          '<div class="lm-rec-row"><span class="label">Current price</span><span class="value">' + fmtGbp(leaf.current) + ' pp</span></div>' +
-          '<div class="lm-rec-row"><span class="label">Current margin</span><span class="value">' + leaf.marginPct.toFixed(1) + '%</span></div>' +
-          '<div class="lm-rec-row"><span class="label">Recommended margin</span><span class="value">' + recM.toFixed(1) + '%</span></div>' +
-          '<div class="lm-rec-row"><span class="label">Implied price</span><span class="value">' + fmtGbp(marginPctToPrice(leaf.cost, recM)) + ' pp</span></div>' +
-          '<div class="lm-rec-row"><span class="label">Change</span><span class="value pct ' + pctClass + '">' + signed(deltaPpt, 'ppt') + '</span></div>' +
-          '<div class="lm-override-row">' +
-            '<label for="lmOverride">Override margin %:</label>' +
-            '<input type="text" class="lm-override-input" id="lmOverride" inputmode="decimal" ' +
-              'value="' + (pendingOverride != null ? pendingOverride : (typeof st.overrideValue === 'number' ? st.overrideValue : '')) + '" ' +
-              'placeholder="' + leaf.recMarginPct.toFixed(1) + '">' +
-          '</div>' +
-          '<div class="lm-actions">' +
-            '<button class="lm-btn lm-btn-reject ' + rejectSolid + '" type="button" id="lmReject">Reject</button>' +
-            '<button class="lm-btn lm-btn-accept ' + acceptSolid + '" type="button" id="lmAccept">Accept</button>' +
-          '</div>' +
+      recPanelHtml +=
+        '<div class="lm-override-row">' +
+          '<label for="lmOverride">Override margin %:</label>' +
+          '<input type="text" class="lm-override-input" id="lmOverride" inputmode="decimal" ' +
+            'value="' + (lmOverrideValue != null ? lmOverrideValue : (typeof st.overrideValue === 'number' ? st.overrideValue : '')) + '" ' +
+            'placeholder="' + agg.recMarginPct.toFixed(1) + '">' +
+        '</div>' +
+        '<div class="lm-actions">' +
+          '<button class="lm-btn lm-btn-reject ' + rejectSolid + '" type="button" id="lmReject">Reject</button>' +
+          '<button class="lm-btn lm-btn-accept ' + acceptSolid + '" type="button" id="lmAccept">Accept</button>' +
         '</div>';
     } else {
-      const agg = aggregate(leaves);
-      const dTint = agg.deltaPpt > 0 ? 'cell-pos' : (agg.deltaPpt < 0 ? 'cell-neg' : 'cell-neutral');
-      recPanelHtml =
-        '<div class="lm-panel">' +
-          '<div class="lm-panel-title">Margin recommendation</div>' +
-          '<div class="lm-rec-row"><span class="label">Blended cost</span><span class="value">' + fmtGbp(agg.cost) + ' pp</span></div>' +
-          '<div class="lm-rec-row"><span class="label">Blended price</span><span class="value">' + fmtGbp(agg.price) + ' pp</span></div>' +
-          '<div class="lm-rec-row"><span class="label">Current margin</span><span class="value">' + agg.marginPct.toFixed(1) + '%</span></div>' +
-          '<div class="lm-rec-row"><span class="label">Recommended margin</span><span class="value">' + agg.recMarginPct.toFixed(1) + '%</span></div>' +
-          '<div class="lm-rec-row"><span class="label">Change</span><span class="value pct ' + dTint + '">' + signed(agg.deltaPpt, 'ppt') + '</span></div>' +
-          '<div style="color:var(--text-muted);font-size:12px;line-height:1.5;padding:8px 0 0;">' +
-            'Expand the row to accept or override each gateway individually.' +
-          '</div>' +
-        '</div>';
+      recPanelHtml += '<div style="color:var(--text-muted);font-size:12px;line-height:1.5;padding:8px 0 0;">' +
+        'Expand the row to accept or override each gateway individually.</div>';
     }
+    recPanelHtml += '</div>';
 
     const c = m.cmp;
     const html =
       '<div class="lm-modal" role="dialog" aria-modal="true">' +
         '<header class="lm-header">' +
-          '<div>' +
-            '<div class="lm-title">' + title + '</div>' +
-            '<div class="lm-subtitle">' + subtitle + '</div>' +
-          '</div>' +
-          (level === 'leaf'
-            ? '<button class="cp-ask-btn" type="button" id="lmAskBtn"><span class="spark">✦</span> Ask</button>'
-            : '') +
+          '<div><div class="lm-title">' + title + '</div><div class="lm-subtitle">' + subtitle + '</div></div>' +
+          (level === 'product' ? '<button class="cp-ask-btn" type="button" id="lmAskBtn"><span class="spark">✦</span> Ask</button>' : '') +
           '<button class="lm-close" type="button" id="lmCloseBtn" aria-label="Close">' +
             '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">' +
-              '<line x1="4" y1="4" x2="12" y2="12"/><line x1="12" y1="4" x2="4" y2="12"/>' +
-            '</svg>' +
+              '<line x1="4" y1="4" x2="12" y2="12"/><line x1="12" y1="4" x2="4" y2="12"/></svg>' +
           '</button>' +
         '</header>' +
         '<div class="lm-body">' +
@@ -4501,100 +4492,52 @@
               '<div class="lm-chart-area">' + hourlyBarsSvg(m.hourly, m.dayLabels, m.hourlyBenchmark) + '</div>' +
             '</div>' +
           '</div>' +
-
           '<div class="lm-col-right">' +
-            '<div class="lm-panel">' +
-              '<div class="lm-panel-title">Destination weather</div>' +
-              '<div class="lm-wx">' +
-                '<div class="lm-wx-icon">' + wx.icon + '</div>' +
-                '<div class="lm-wx-text">' +
-                  '<div class="lm-wx-temp">' + wx.temp + '°C</div>' +
-                  '<div class="lm-wx-desc">' + esc(wxDesc) + ' at destination</div>' +
-                '</div>' +
-              '</div>' +
-            '</div>' +
-
             '<div class="lm-panel">' +
               '<div class="lm-panel-title">Comparison</div>' +
               '<table class="lm-compare">' +
                 '<thead><tr><th></th><th>Current</th><th>Target</th><th>Last yr</th></tr></thead>' +
                 '<tbody>' +
-                  '<tr><td>Bookings</td>' +
-                    '<td>' + fmtInt(c.units.current)  + '</td>' +
-                    '<td>' + fmtInt(c.units.forecast) + '</td>' +
-                    '<td>' + fmtInt(c.units.lastYear) + '</td></tr>' +
-                  '<tr><td>Revenue</td>' +
-                    '<td>' + fmtGbpK(c.revenue.current)  + '</td>' +
-                    '<td>' + fmtGbpK(c.revenue.forecast) + '</td>' +
-                    '<td>' + fmtGbpK(c.revenue.lastYear) + '</td></tr>' +
-                  '<tr><td>Margin</td>' +
-                    '<td>' + fmtGbpK(c.margin.current)  + '</td>' +
-                    '<td>' + fmtGbpK(c.margin.forecast) + '</td>' +
-                    '<td>' + fmtGbpK(c.margin.lastYear) + '</td></tr>' +
-                  '<tr><td>Pace</td>' +
-                    '<td>' + (c.ros.current > 0 ? '+' : '') + c.ros.current + '%</td>' +
-                    '<td>0%</td>' +
-                    '<td>—</td></tr>' +
+                  '<tr><td>Bookings</td><td>' + fmtInt(c.units.current) + '</td><td>' + fmtInt(c.units.forecast) + '</td><td>' + fmtInt(c.units.lastYear) + '</td></tr>' +
+                  '<tr><td>Revenue</td><td>' + fmtGbpK(c.revenue.current) + '</td><td>' + fmtGbpK(c.revenue.forecast) + '</td><td>' + fmtGbpK(c.revenue.lastYear) + '</td></tr>' +
+                  '<tr><td>Margin</td><td>' + fmtGbpK(c.margin.current) + '</td><td>' + fmtGbpK(c.margin.forecast) + '</td><td>' + fmtGbpK(c.margin.lastYear) + '</td></tr>' +
+                  '<tr><td>Pace</td><td>' + (c.ros.current > 0 ? '+' : '') + c.ros.current + '%</td><td>0%</td><td>—</td></tr>' +
                 '</tbody>' +
               '</table>' +
             '</div>' +
-
             recPanelHtml +
-
-            // Booking channel mix (aggregate levels only) + departure gateway mix.
             (function () {
-              const modalKey = level === 'leaf' ? leaf.stateKey : (park.id + '|' + date.iso);
-              let channelHtml = '';
-              if (level !== 'leaf') {
-                const channelPcts = computeMixPcts(CHANNEL_MIX, modalKey, 'chan', 5);
-                channelHtml = mixPanelHtml(
-                  'Booking channel mix',
-                  CHANNEL_MIX,
-                  channelPcts,
-                  (it) => it.color
-                );
-              }
-              const markets = SOURCE_MIX_BY_PARK[park.id] || SOURCE_MIX_BY_PARK.faro;
-              const srcPcts = computeMixPcts(markets, modalKey, 'src', 4);
-              const srcHtml = mixPanelHtml(
-                'Departure gateway mix',
-                markets,
-                srcPcts,
-                (it, i) => SOURCE_COLORS[i] || '#94a3b8'
-              );
-              return channelHtml + srcHtml;
+              const mk = level === 'product' ? key : (park ? park.id : region.id);
+              const markets = (park && SOURCE_MIX_BY_PARK[park.id]) || SOURCE_MIX_BY_PARK.faro;
+              return mixPanelHtml('Departure gateway mix', markets,
+                computeMixPcts(markets, mk, 'src', 4), (it, i) => SOURCE_COLORS[i] || '#94a3b8');
             })() +
-
           '</div>' +
         '</div>' +
       '</div>';
 
     lmBackdrop.innerHTML = html;
-
-    // Always wire close
     document.getElementById('lmCloseBtn').addEventListener('click', closeModal);
     const askBtn = document.getElementById('lmAskBtn');
-    if (askBtn) askBtn.addEventListener('click', () => {
-      if (activeModal && activeModal.leaf) openRowCopilot(activeModal.leaf.stateKey);
-    });
+    if (askBtn) askBtn.addEventListener('click', () => openRowCopilot(key));
 
-    // Leaf-only controls: accept / reject / override
-    if (level === 'leaf') {
-      const key = leaf.stateKey;
+    if (level === 'product') {
       document.getElementById('lmAccept').addEventListener('click', () => {
-        if (lmOverrideValue != null && !isNaN(lmOverrideValue) && Math.abs(lmOverrideValue - leaf.marginPct) >= 0.05) {
-          const stRef = rowStates[key] || (rowStates[key] = {});
-          stRef.overrideValue = Math.max(2, Math.min(72, Math.round(lmOverrideValue * 10) / 10));
-          stRef.state = 'overridden';
+        if (lmOverrideValue != null && !isNaN(lmOverrideValue) && Math.abs(lmOverrideValue - agg.marginPct) >= 0.05) {
+          const ref = rowStates[key] || (rowStates[key] = {});
+          ref.overrideValue = Math.max(2, Math.min(72, Math.round(lmOverrideValue * 10) / 10));
+          ref.state = 'overridden';
         } else {
           toggleAccept(key);
         }
         lmOverrideValue = null;
+        render();
         renderModal();
       });
       document.getElementById('lmReject').addEventListener('click', () => {
         toggleReject(key);
         lmOverrideValue = null;
+        render();
         renderModal();
       });
       const ovIn = document.getElementById('lmOverride');
@@ -4605,9 +4548,8 @@
       });
     }
 
-    // Chart tooltips (always)
     wireDemandPaceTooltip(lmBackdrop.querySelector('.chart-demand'), m);
-    wireHourlyTooltip(lmBackdrop.querySelector('.chart-hourly'),    m);
+    wireHourlyTooltip(lmBackdrop.querySelector('.chart-hourly'), m);
   }
 
   // ── Chart tooltip wiring ──
@@ -4750,17 +4692,16 @@
   // ── Row click → open modal (any level; chevron + interactive controls excluded) ──
   document.getElementById('srtBody').addEventListener('click', e => {
     if (e.target.closest('[data-action]'))  return;
-    if (e.target.closest('td.rec-cell'))    return;
     if (e.target.closest('input, select, textarea, button')) return;
-    if (e.target.closest('.accordion-name')) return;   // chevron click reserved for accordion toggle
+    if (e.target.closest('.accordion-name')) return;
     const tr = e.target.closest('tr.row-leaf, tr.row-dest, tr.row-region');
     if (!tr) return;
     if (tr.classList.contains('row-leaf')) {
-      openModal({ level: 'leaf', key: tr.dataset.key });
+      openModal({ level: 'product', destId: tr.dataset.dest, gwId: tr.dataset.gw });
     } else if (tr.classList.contains('row-dest')) {
-      openModal({ level: 'dest', destId: tr.dataset.dest, dateIso: tr.dataset.date });
+      openModal({ level: 'dest', destId: tr.dataset.dest });
     } else {
-      openModal({ level: 'region', regionId: tr.dataset.region, dateIso: tr.dataset.date });
+      openModal({ level: 'region', regionId: tr.dataset.region });
     }
   });
 
@@ -4906,11 +4847,46 @@
     if (!parkMatchesFilter(leaf.park)) return false;
     if (filters.ticket.length  && !filters.ticket.includes(leaf.ticket.label)) return false;
     if (filters.daytype.length && !filters.daytype.includes(dateDayType(leaf.date))) return false;
-    if (filters.rec.length     && !filters.rec.includes(recActionFor(leaf))) return false;
-    if (filters.action.length  && !filters.action.includes(leafActionState(leaf))) return false;
     if (!dateInDateRange(leaf.date)) return false;
-    if (!leafMatchesAlertFilter(leaf)) return false;
     return true;
+  }
+
+  // Product-level predicate: the table's row filter.
+  function productPasses(dest, gw) {
+    if (!parkMatchesFilter(dest)) return false;
+    if (filters.ticket.length && !filters.ticket.includes(gw.label)) return false;
+    const leaves = productLeaves(dest, gw);
+    if (!leaves.length) return false;
+    if (filters.daytype.length && !leaves.some(l => filters.daytype.includes(dateDayType(l.date)))) return false;
+    if (filters.alert.length) {
+      const active = [...new Set(leaves.flatMap(leafActiveAlerts))];
+      const ok = filters.alert.some(v => {
+        if (v === 'Any alert') return active.length > 0;
+        if (v === 'No alert')  return active.length === 0;
+        return active.includes(v);
+      });
+      if (!ok) return false;
+    }
+    if (filters.rec.length || filters.action.length) {
+      const key = productKey(dest, gw);
+      const st = rowStates[key] || {};
+      const agg = aggregate(leaves);
+      const recM = (typeof st.overrideValue === 'number') ? st.overrideValue : agg.recMarginPct;
+      const d = recM - agg.marginPct;
+      const rec = d > 0.05 ? 'Increase' : d < -0.05 ? 'Decrease' : 'No change';
+      if (filters.rec.length && !filters.rec.includes(rec)) return false;
+      const act = st.state === 'accepted' ? 'Accepted' : st.state === 'rejected' ? 'Rejected'
+                : st.state === 'overridden' ? 'Overridden' : 'Pending';
+      if (filters.action.length && !filters.action.includes(act)) return false;
+    }
+    return true;
+  }
+  function anyProductPassesIn(dest) {
+    return dest.tickets.some(gw => productPasses(dest, gw));
+  }
+  function anyProductPassesInRegion(region) {
+    if (!regionMatchesFilter(region)) return false;
+    return region.dests.some(anyProductPassesIn);
   }
   function anyLeafPassesIn(park, date) {
     return park.tickets.some(t => leafPasses(ALL_LEAVES[stateKey(park, t, date)]));
@@ -5787,12 +5763,6 @@
     applyFilters();
   });
 
-  // ── Rate selector (ticket type derived from the Adult rate) ──
-  document.getElementById('rateSelect').addEventListener('change', e => {
-    rateView = e.target.value;
-    render();
-  });
-
   // ─────────────────────────────────────────────────────────────
   //  Bulk price update — apply a % or £ adjustment to selected rows
   // ─────────────────────────────────────────────────────────────
@@ -5803,10 +5773,15 @@
     return document.querySelector('input[name="bulkType"]:checked').value;
   }
   // Bulk adjustment: either margin points, or a price move converted to margin.
-  function bulkNewMargin(leaf, type, v) {
-    if (type === 'pct') return Math.max(2, Math.min(72, Math.round((leaf.marginPct + v) * 10) / 10));
-    const newPrice = Math.max(leaf.cost + 5, leaf.current + v);
-    return Math.max(2, Math.min(72, Math.round(((newPrice - leaf.cost) / newPrice) * 1000) / 10));
+  function bulkNewMargin(key, type, v) {
+    const cur = currentMarginFor(key);
+    if (type === 'pct') return Math.max(2, Math.min(72, Math.round((cur + v) * 10) / 10));
+    // Price move (GBP pp) converted to a margin at this product's blended cost.
+    const pr = productFromKey(key);
+    if (!pr) return cur;
+    const agg = aggregate(productLeaves(pr.dest, pr.gw));
+    const newPrice = Math.max(agg.cost + 5, agg.price + v);
+    return Math.max(2, Math.min(72, Math.round(((newPrice - agg.cost) / newPrice) * 1000) / 10));
   }
   function refreshBulkPreview() {
     const v = parseFloat(bulkValueEl.value);
@@ -5821,18 +5796,19 @@
     applyBtn.disabled = false;
     const type = bulkType();
     const sample = [...selectedKeys].slice(0, 3).map(k => {
-      const leaf = ALL_LEAVES[k];
-      const nm = bulkNewMargin(leaf, type, v);
-      return '<div class="bulk-preview-row"><span>' + esc(leaf.park.name) + ' · ' + esc(leaf.ticket.label) +
-        ' · ' + esc(leaf.date.label) + '</span><span>' + leaf.marginPct.toFixed(1) + '% → <b>' +
-        nm.toFixed(1) + '%</b> · ' + fmtGbp(marginPctToPrice(leaf.cost, nm)) + ' pp</span></div>';
+      const nm = bulkNewMargin(k, type, v);
+      return '<div class="bulk-preview-row"><span>' + esc(k) + '</span><span>' +
+        currentMarginFor(k).toFixed(1) + '% → <b>' + nm.toFixed(1) + '%</b></span></div>';
     }).join('');
     const more = selectedKeys.size > 3
       ? '<div class="bulk-preview-more">… and ' + (selectedKeys.size - 3) + ' more</div>' : '';
     preview.innerHTML = '<div class="bulk-preview-title">Preview</div>' + sample + more;
   }
   function openBulkModal() {
-    if (!selectedKeys.size) return;
+    if (!selectedKeys.size) {
+      showToast('Tick one or more rows first, then use Bulk margin');
+      return;
+    }
     document.getElementById('bulkSub').textContent =
       selectedKeys.size + ' row' + (selectedKeys.size === 1 ? '' : 's') + ' selected';
     bulkValueEl.value = '';
@@ -5863,10 +5839,8 @@
     const type = bulkType();
     let n = 0;
     selectedKeys.forEach(k => {
-      const leaf = ALL_LEAVES[k];
-      if (!leaf) return;
       const st = rowStates[k] || (rowStates[k] = {});
-      st.overrideValue = bulkNewMargin(leaf, type, v);
+      st.overrideValue = bulkNewMargin(k, type, v);
       st.state = 'overridden';
       n++;
     });
@@ -5907,33 +5881,36 @@
     return out.slice(0, 4);
   }
 
-  // ── Build the row's data context once on open ──
+  // ── Build the row's data context once on open (product key) ──
   function buildRowContext(rowKey) {
-    const leaf = ALL_LEAVES[rowKey];
-    if (!leaf) return null;
-    const m = leafModalData(leaf);
-    const recM = recMarginOf(leaf);
+    const pr = productFromKey(rowKey);
+    if (!pr) return null;
+    const leaves = productLeaves(pr.dest, pr.gw);
+    if (!leaves.length) return null;
+    const agg = aggregate(leaves);
+    const m = aggregateModalData(leaves);
+    const st = rowStates[rowKey] || {};
+    const recM = (typeof st.overrideValue === 'number') ? st.overrideValue : agg.recMarginPct;
     return {
-      leaf,
-      region: leaf.park.region, park: leaf.park, ticket: leaf.ticket, date: leaf.date,
-      pickup: leaf.ros,
-      sessions: leaf.sessions,
-      conversion: leaf.conversion,
-      cost: leaf.cost,
-      price: leaf.current,
-      marginPct: leaf.marginPct,
+      key: rowKey,
+      region: pr.dest.region, park: pr.dest, ticket: pr.gw,
+      pickup: agg.ros,
+      sessions: agg.sessions,
+      conversion: agg.conversion,
+      marginPct: agg.marginPct,
+      supMarginPct: agg.supMarginPct,
+      supMarginGbp: agg.supMarginGbp,
+      marginGbp: agg.marginGbp,
       recMarginPct: recM,
-      deltaPpt: Math.round((recM - leaf.marginPct) * 10) / 10,
-      recPrice: marginPctToPrice(leaf.cost, recM),
-      demand: leaf.demand,
-      targetBookings: leaf.fcst,
-      pctOfFcst: leaf.pctOfFcst,
-      sold: leaf.sold,
-      revenue: leaf.revenue,
-      yoy: leaf.yoy,
-      wx: leaf.wx,
-      alerts: leaf.alerts || [],
-      alertLabels: (leaf.alerts || []).map(a => a.label),
+      deltaPpt: Math.round((recM - agg.marginPct) * 10) / 10,
+      demand: agg.demand,
+      targetBookings: agg.fcst,
+      pctOfFcst: agg.pctOfFcst,
+      sold: agg.sold,
+      yoy: agg.yoy,
+      departures: leaves.length,
+      alerts: [...new Map(leaves.flatMap(l => (l.alerts || []).map(a => [a.type, a]))).values()],
+      alertLabels: [...new Set(leaves.flatMap(l => (l.alerts || []).map(a => a.label)))],
       cmp: m.cmp,
     };
   }
@@ -5942,8 +5919,9 @@
   function buildContextMessage(ctx) {
     const alertList = ctx.alertLabels.length ? ctx.alertLabels.join(', ') : 'none';
     return "Here's the margin position for " + ctx.park.name + " — " + ctx.ticket.label +
-      " departing " + ctx.date.label + " " + ctx.date.dowLabel + ":\n" +
-      "• Margin: " + ctx.marginPct.toFixed(1) + "% (£" + (ctx.price - ctx.cost) + " pp on a £" + ctx.price + " package)\n" +
+      " across " + ctx.departures + " departures:\n" +
+      "• Package margin: " + ctx.marginPct.toFixed(1) + "% (" + fmtGbpK(ctx.marginGbp) + " banked)\n" +
+      "• Supplement margin: " + ctx.supMarginPct.toFixed(1) + "% (" + fmtGbpK(ctx.supMarginGbp) + ")\n" +
       "• Recommended: " + ctx.recMarginPct.toFixed(1) + "% (" + (ctx.deltaPpt > 0 ? '+' : '') + ctx.deltaPpt + "ppt)\n" +
       "• Web demand: " + fmtInt(ctx.sessions) + " sessions at " + ctx.conversion.toFixed(2) + "% conversion\n" +
       "• Booking pace: " + (ctx.pickup > 0 ? '+' : '') + ctx.pickup + "% vs historic · " + demandLevelForScore(ctx.demand).code + "\n" +
@@ -6018,14 +5996,9 @@
 
     if (/why.*demand|high demand/.test(lower)) {
       const dlCtx = demandLevelForScore(ctx.demand);
-      const wxFactor = ctx.wx.kind === 'sun'  ? 'settled outlook at destination'
-                     : ctx.wx.kind === 'rain' ? 'unsettled outlook at destination' : '';
-      const dateFactor = ctx.date.isHoliday ? 'school-holiday departure week'
-                       : ctx.date.isWeekend ? 'weekend departure' : 'midweek departure baseline';
-      return 'Demand level ' + dlCtx.code + ' (' + dlCtx.label + ') is driven by:\n' +
-        '• ' + dateFactor + '\n' +
-        (wxFactor ? '• ' + wxFactor + '\n' : '') +
-        '• ' + fmtInt(ctx.sessions) + ' web sessions converting at ' + ctx.conversion.toFixed(2) + '%';
+      return 'Demand level ' + dlCtx.code + ' (' + dlCtx.label + ') across ' + ctx.departures + ' departures:\n' +
+        '• ' + fmtInt(ctx.sessions) + ' web sessions converting at ' + ctx.conversion.toFixed(2) + '%\n' +
+        '• ' + fmtInt(ctx.sold) + ' of ' + fmtInt(ctx.targetBookings) + ' target bookings away (' + ctx.pctOfFcst + '%)';
     }
     if (/alert|flag/.test(lower)) {
       if (!ctx.alerts.length) return 'No alerts firing on this row.';
@@ -6039,11 +6012,10 @@
       const dir = ctx.deltaPpt > 0 ? 'demand is running ahead of expectation, so the rules take more margin'
                 : ctx.deltaPpt < 0 ? 'demand is behind expectation, so the rules give margin back to stimulate conversion'
                 : 'demand is in line with expectation, so the rules hold margin';
-      return 'Cost £' + ctx.cost + ' pp against a £' + ctx.price + ' pp package — a ' +
-        ctx.marginPct.toFixed(1) + '% margin.\n' +
-        'Recommended ' + ctx.recMarginPct.toFixed(1) + '% (' + signed(ctx.deltaPpt, 'ppt') +
-        '), implying £' + ctx.recPrice + ' pp.\n' +
-        'Driver: ' + dir + '. Accept to apply, or override the margin in the row.';
+      return 'Package margin is ' + ctx.marginPct.toFixed(1) + '% (' + fmtGbpK(ctx.marginGbp) + ' banked), ' +
+        'with supplements running at ' + ctx.supMarginPct.toFixed(1) + '%.\n' +
+        'Recommended ' + ctx.recMarginPct.toFixed(1) + '% (' + signed(ctx.deltaPpt, 'ppt') + ').\n' +
+        'Driver: ' + dir + '. Accept to apply, or type a new margin straight into the row.';
     }
     if (/traffic|session|conversion|web/.test(lower)) {
       return 'Observed web demand for this gateway:\n' +
@@ -6060,8 +6032,7 @@
         '• Bookings: ' + fmtInt(ctx.cmp.units.current) + ' vs ' + fmtInt(ctx.cmp.units.lastYear);
     }
     if (/why|behind|pace/.test(lower)) {
-      const cause = ctx.wx.kind === 'rain' ? 'an unsettled outlook at the destination'
-                  : ctx.conversion < 3 ? 'weak conversion on the traffic this gateway is getting'
+      const cause = ctx.conversion < 3 ? 'weak conversion on the traffic this gateway is getting'
                   : ctx.demand < 35 ? 'soft midweek departure demand'
                   : ctx.pickup > 0 ? 'no specific driver — pacing slightly above benchmark'
                   : 'general benchmark drift on this departure';
@@ -6113,11 +6084,9 @@
       '<div style="min-width:0;flex:1">' +
         '<div class="cp-title">' + escHtml(ctx.park.name) + '</div>' +
         '<div class="cp-sub">' + escHtml(ctx.ticket.label) + ' · ' +
-          escHtml(ctx.date.label) + ' ' + escHtml(ctx.date.dowLabel) +
-          (ctx.date.isHoliday ? ' · Holiday' : '') +
-        '</div>' +
+          escHtml(ctx.region.name) + '</div>' +
         '<div class="cp-metrics">Margin: ' + ctx.marginPct.toFixed(1) + '% → ' + ctx.recMarginPct.toFixed(1) + '% · ' +
-          'Pace: ' + (ctx.pickup > 0 ? '+' : '') + ctx.pickup + '% · ' + demandLevelForScore(ctx.demand).code + '</div>' +
+          'Sup ' + ctx.supMarginPct.toFixed(1) + '% · Pace ' + (ctx.pickup > 0 ? '+' : '') + ctx.pickup + '%</div>' +
         '<div class="cp-tag"><span style="font-size:11px">✦</span> Margin Copilot</div>' +
       '</div>' +
       '<button class="cp-header-close" type="button" id="cpRowClose" aria-label="Close">' +

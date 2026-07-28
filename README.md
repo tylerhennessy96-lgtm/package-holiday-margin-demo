@@ -21,13 +21,18 @@ Demand comes from **observed web traffic** — sessions and conversion. The
 operator does not own the flights, so there is no seat capacity, load factor or
 booking curve anywhere in the model.
 
+**Supplements** (board and room upgrades, transfers, bags, single-occupancy)
+carry a much richer margin than the base package, so they get their own column
+next to the package margin.
+
 ## Pages
 
 | Page | What it does |
 | --- | --- |
-| **Pricing** (`index.html`) | Region → Destination → Gateway accordion across a 30-day departure horizon, plus a calendar heatmap. Filters, sorting, alerts, demand levels, margin recommendations, accept/reject/override, reason codes, bulk margin update, detail modals, and a Margin Copilot mock. |
+| **Pricing** (`index.html`) | Region → Destination → Gateway accordion. Each row aggregates the departures in range — the Calendar view carries the date dimension. Filters, sorting, alerts, demand levels, package and supplement margin, a dedicated margin input on every gateway row, accept/reject, reason codes, bulk margin update, detail modals, and a Margin Copilot mock. |
 | **Autopilot** (`autopilot.html`) | Same three-level accordion, where every row carries its own auto-accept margin band (±ppt) and peak-day switch, inherited gateway → destination → region. |
 | **Alert rules** (`alerts.html`) | Same accordion again, carrying per-row alert thresholds (low pace, margin floor, conversion) with the same inheritance and per-row reset. |
+| **Package rules** (`package-rules.html`) | Two-pane rule builder: scope a rule to a region, destination, gateway and departure type, add ALL/ANY conditions over demand, traffic, pace or margin, and set a margin action. Evaluated top to bottom, first match wins. |
 | **Settings** (`settings.html`) | Global alert defaults that the per-row rules inherit from. |
 | **Sign in** (`sso.html`) | Fake SSO screen; the drawer's log-out returns here. |
 
@@ -54,7 +59,9 @@ recommended margin move:
 | DL2 | Low demand | −1.0 to −2.5 ppt |
 | DL1 | Very low demand | −2.5 to −5.0 ppt |
 
-Most departures sit in DL3, so most rows carry no recommended change.
+Most departures sit in DL3, so most rows carry no recommended change. The
+recommended margin sits in an editable cell on every gateway row — type a new
+number and it becomes an override that flows through to the calendar.
 
 ## Alerts
 
