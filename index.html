@@ -4417,8 +4417,20 @@
     const children = leaves.map(l => leafModalData(l));
     const N = children[0].actualSeries.length;
     const M = children[0].hourly.length;
+
+    // Volumes add up; RATES must not. Sessions are summed, but conversion is a
+    // percentage — summing it across leaves produced impossible values like
+    // 1000%+. It is averaged, weighted by each leaf's sessions, so a busy
+    // gateway pulls the blended rate more than a quiet one.
     const sumAt = (key, len) => Array.from({ length: len }, (_, i) =>
       children.reduce((s, c) => s + c[key][i], 0));
+    const weights = leaves.map(l => Math.max(1, l.sessions));
+    const totalWeight = weights.reduce((s, w) => s + w, 0);
+    const weightedAt = (key, len) => Array.from({ length: len }, (_, i) => {
+      const v = children.reduce((s, c, ci) => s + c[key][i] * weights[ci], 0) / totalWeight;
+      return Math.round(v * 100) / 100;
+    });
+
     let unitsCur = 0, unitsFcst = 0, unitsLY = 0;
     let revCur = 0, revFcst = 0, revLY = 0;
     let mgCur = 0, mgFcst = 0, mgLY = 0;
@@ -4440,8 +4452,8 @@
     return {
       actualSeries:    sumAt('actualSeries', N),
       benchmarkSeries: sumAt('benchmarkSeries', N),
-      hourly:          sumAt('hourly', M),
-      hourlyBenchmark: sumAt('hourlyBenchmark', M),
+      hourly:          weightedAt('hourly', M),
+      hourlyBenchmark: weightedAt('hourlyBenchmark', M),
       dayLabels:       children[0].dayLabels,
       cmp: {
         units:   { current: unitsCur, forecast: unitsFcst, lastYear: unitsLY },
