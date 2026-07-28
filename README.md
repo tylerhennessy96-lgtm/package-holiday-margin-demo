@@ -43,7 +43,7 @@ of the engine's baseline.
 
 | Page | What it does |
 | --- | --- |
-| **Pricing** (`index.html`) | Region → Destination → Gateway accordion. Each row aggregates the departures in range — the Calendar view carries the date dimension. Filters, sorting, alerts, demand levels, margin, two adjustment inputs (ppt / £) usable at any level with propagation, and a read-only Sup column of committed margin. Accept, reject, reasons, notes and Ask work at every level. Bulk margin update, detail modals, Margin Copilot mock. |
+| **Pricing** (`index.html`) | Region → Destination → Gateway accordion, split by lead-time band. Each row aggregates the departures in range — the Calendar view carries the date dimension. Filters, sorting, alerts, demand levels, margin, two adjustment inputs (ppt / £) usable at any level with propagation, and a read-only Sup column of committed margin. Accept, reject, reasons, notes and Ask work at every level. Bulk margin update, detail modals, Margin Copilot mock. |
 | **Autopilot** (`autopilot.html`) | Same three-level accordion, where every row carries its own auto-accept margin band (±ppt) and peak-day switch, inherited gateway → destination → region. |
 | **Alert rules** (`alerts.html`) | Same accordion again, carrying per-row alert thresholds (low pace, margin floor, conversion) with the same inheritance and per-row reset. |
 | **Margin rules** (`package-rules.html`) | The additive matrix itself: every factor band and every guardrail is editable, with a live worked example that recalculates as you change them. Feeds the Pricing engine. |
@@ -55,6 +55,7 @@ of the engine's baseline.
 - **Region** — Western Mediterranean, Eastern Mediterranean, Canaries & Atlantic, Caribbean & Mexico
 - **Destination** — 12 in total, each with a country (Faro/Algarve, Palma/Mallorca, Heraklion/Crete, Cancún, Montego Bay, …)
 - **Gateway** — UK outbound departure point (London Gatwick, Manchester, Birmingham, Glasgow, …)
+- **Lead time** — each gateway splits into ≤7d · 8–30d · 31–90d · 91–180d · 180d+, so a destination is never viewed across all time at once. It has its own column and filter.
 
 Parent rows are true roll-ups: volumes sum, rates are revenue- or
 session-weighted, and margin is recomputed from summed revenue and summed cost
@@ -69,6 +70,10 @@ so it always reconciles with the rows beneath it.
 | Basket value — total package value per booking | +1.5 → −1.0 ppt |
 | Booking channel — blended across the acquisition mix | −0.5 → +1.5 ppt |
 | Departure window — days until departure | +1.5 → −1.0 ppt |
+
+The departure-window bands are the same definition the table splits rows by, so
+a row maps to exactly one band and the factor is exact rather than blended. One
+gateway's target steps 12.4% → 11.8% → 10.4% → 10.0% → 9.5% purely on lead time.
 | Supplier cost advantage — cost vs benchmark | +2.0 → −1.0 ppt |
 
 Worked example from the rule sheet: 12.0% base, +1.0 (4% cheaper than

@@ -615,6 +615,19 @@
     input.adj-input.is-set { border-color: var(--accent); color: var(--accent-text); font-weight: 600; background: rgba(232,0,125,0.04); }
     .adj-unit, .adj-prefix { font-size: 10px; color: var(--text-muted); }
 
+    /* Lead-time band chip */
+    table.srt tbody td.lead-cell { white-space: nowrap; }
+    .lead-chip {
+      display: inline-block; font-size: 10px; font-weight: 600;
+      padding: 2px 7px; border-radius: 999px; letter-spacing: 0.02em;
+      font-variant-numeric: tabular-nums; white-space: nowrap;
+    }
+    .lead-chip.lead-w1 { background: #fee2e2; color: #991b1b; }
+    .lead-chip.lead-w2 { background: #ffedd5; color: #9a3412; }
+    .lead-chip.lead-w3 { background: #f1f5f9; color: #475569; }
+    .lead-chip.lead-w4 { background: #e0f2fe; color: #075985; }
+    .lead-chip.lead-w5 { background: #ede9fe; color: #5b21b6; }
+
     /* Margin-matrix breakdown table in the detail modal */
     table.mx-table { width: 100%; border-collapse: collapse; font-size: 12px; }
     table.mx-table td { padding: 5px 0; border-bottom: 1px solid var(--border); color: var(--text-primary); }
@@ -2454,6 +2467,10 @@
           <span class="ms-trigger-text">All Gateways</span>
           <span class="ms-trigger-count" hidden></span>
         </button>
+        <button class="filter-pill ms-pill" data-filter="lead" type="button" aria-haspopup="listbox" aria-expanded="false">
+          <span class="ms-trigger-text">All Lead Times</span>
+          <span class="ms-trigger-count" hidden></span>
+        </button>
         <button class="filter-pill ms-pill" data-filter="daytype" type="button" aria-haspopup="listbox" aria-expanded="false">
           <span class="ms-trigger-text">All Departure Types</span>
           <span class="ms-trigger-count" hidden></span>
@@ -2512,7 +2529,7 @@
       <table class="srt">
         <thead>
           <tr class="bands">
-            <th class="band-product" colspan="3">Package</th>
+            <th class="band-product" colspan="4">Package</th>
             <th class="band-demand"  colspan="4">Observed web demand</th>
             <th class="band-sales"   colspan="4">Bookings</th>
             <th class="band-price"   colspan="8">Margin</th>
@@ -2520,6 +2537,7 @@
           <tr class="cols">
             <th class="col-select"><input type="checkbox" class="row-select" id="selectAllRows" aria-label="Select all visible rows" title="Select all visible gateway rows"></th>
             <th class="sortable" data-sort-key="name" data-sort-type="text"><span class="th-inner"><span class="th-text">Region / Destination<span class="sub">Gateway</span></span><span class="sort-ind" aria-hidden="true"><span class="sa-up">▲</span><span class="sa-down">▼</span></span></span></th>
+            <th class="sortable" data-sort-key="lead" data-sort-type="text"><span class="th-inner"><span class="th-text">Lead<span class="sub">time</span></span><span class="sort-ind" aria-hidden="true"><span class="sa-up">▲</span><span class="sa-down">▼</span></span></span></th>
             <th class="sortable" data-sort-key="alertCount" data-sort-type="num"><span class="th-inner"><span class="th-text">Alerts</span><span class="sort-ind" aria-hidden="true"><span class="sa-up">▲</span><span class="sa-down">▼</span></span></span></th>
 
             <th class="num sortable" data-sort-key="sessions" data-sort-type="num"><span class="th-inner"><span class="th-text">Web<span class="sub">sessions</span></span><span class="sort-ind" aria-hidden="true"><span class="sa-up">▲</span><span class="sa-down">▼</span></span></span></th>
@@ -2918,6 +2936,26 @@
     { id: 'affiliate', label: 'Affiliate',        base: 10, color: '#f59e0b' },
   ];
 
+  // ── Lead-time bands ────────────────────────────────────────
+  // The pricing table splits every gateway by lead time rather than looking
+  // at a destination across all time. These are the same boundaries the
+  // margin matrix uses for its Departure window factor — deliberately one
+  // definition, so the split and the rule can never drift apart. A useful
+  // side effect: because a row is now a single band, that factor resolves to
+  // an exact adjustment instead of a blended "mostly" figure.
+  const LEAD_BANDS = [
+    { id: 'w1', label: 'Within 7 days',      short: '≤ 7d',     min: 0,   max: 7    },
+    { id: 'w2', label: '8–30 days',          short: '8–30d',    min: 8,   max: 30   },
+    { id: 'w3', label: '31–90 days',         short: '31–90d',   min: 31,  max: 90   },
+    { id: 'w4', label: '91–180 days',        short: '91–180d',  min: 91,  max: 180  },
+    { id: 'w5', label: 'More than 180 days', short: '180d +',   min: 181, max: 9999 },
+  ];
+  function leadBandFor(days) {
+    for (const b of LEAD_BANDS) if (days >= b.min && days <= b.max) return b;
+    return LEAD_BANDS[LEAD_BANDS.length - 1];
+  }
+  const leadBand = id => LEAD_BANDS.find(b => b.id === id) || LEAD_BANDS[0];
+
   // ── Margin-rule matrix ─────────────────────────────────────
   // Target margin is built ADDITIVELY: a base margin, plus one adjustment
   // from each factor group, then clamped by guardrails. Every band is
@@ -3039,10 +3077,7 @@
       const v = leaf.basketValue;
       return v < 750 ? 'b1' : v < 1500 ? 'b2' : v < 3000 ? 'b3' : v < 5000 ? 'b4' : 'b5';
     }
-    if (groupId === 'window') {
-      const d = leaf.daysToDeparture;
-      return d <= 7 ? 'w1' : d <= 30 ? 'w2' : d <= 90 ? 'w3' : d <= 180 ? 'w4' : 'w5';
-    }
+    if (groupId === 'window') return leadBandFor(leaf.daysToDeparture).id;
     if (groupId === 'supplier') {
       const v = leaf.costIndex;                      // our cost vs benchmark, % (negative = better)
       return v < -7 ? 's1' : v < -3 ? 's2' : v <= 3 ? 's3' : v <= 7 ? 's4' : 's5';
@@ -3114,11 +3149,11 @@
   }
   function demandLevelForScore(score) { return demandLevelFor(demandPpt(score)); }
 
-  // ── 180-day departure horizon from tomorrow (today = 2026-07-15) ──
+  // ── 365-day departure horizon from tomorrow (today = 2026-07-15) ──
   function buildDates() {
     const out = [];
     const start = new Date(Date.UTC(2026, 6, 16));   // 2026-07-16
-    for (let i = 0; i < 180; i++) {
+    for (let i = 0; i < 365; i++) {
       const d = new Date(start);
       d.setUTCDate(start.getUTCDate() + i);
       const y = d.getUTCFullYear();
@@ -3311,19 +3346,37 @@
   }
 
   // ── Product layer ────────────────────────────────────────────
-  // The table has no date column: a row is a PRODUCT (destination x gateway)
-  // aggregated across every departure in the current date range. Decisions —
-  // accept, reject, override — are taken on the product and therefore apply
-  // to the whole horizon. The Calendar view is where the date dimension lives.
-  function productKey(dest, gw) { return dest.name + ' — ' + gw.label; }
+  // A row in the table is a PRODUCT: destination x gateway x lead-time band,
+  // aggregated across the departures in that band. There is no date column —
+  // the Calendar view carries the date dimension. Decisions (accept, reject,
+  // adjust) are taken on the product and apply across its departures.
+  function productKey(dest, gw, bandId) {
+    return dest.name + ' — ' + gw.label + ' — ' + leadBand(bandId).short;
+  }
 
-  // Leaves belonging to one product, across the dates currently in range.
-  function productLeaves(dest, gw) {
-    return DATES.filter(dateInDateRange).map(d => ALL_LEAVES[stateKey(dest, gw, d)]);
+  // Leaves for one product, across the dates currently in range. Cached: the
+  // 365-day horizon means this is called a great many times per render.
+  const _plCache = new Map();
+  let _plStamp = '';
+  function productLeaves(dest, gw, bandId) {
+    const stamp = (filters.dateRange.start || '') + '|' + (filters.dateRange.end || '');
+    if (stamp !== _plStamp) { _plCache.clear(); _plStamp = stamp; }
+    const ck = dest.id + '|' + gw.id + '|' + bandId;
+    let out = _plCache.get(ck);
+    if (out) return out;
+    const band = leadBand(bandId);
+    out = [];
+    DATES.forEach(d => {
+      if (!dateInDateRange(d)) return;
+      if (d.daysOut < band.min || d.daysOut > band.max) return;
+      out.push(ALL_LEAVES[stateKey(dest, gw, d)]);
+    });
+    _plCache.set(ck, out);
+    return out;
   }
   function productLeavesFor(dest) {
     const out = [];
-    dest.tickets.forEach(gw => out.push(...productLeaves(dest, gw)));
+    dest.tickets.forEach(gw => LEAD_BANDS.forEach(b => out.push(...productLeaves(dest, gw, b.id))));
     return out;
   }
   function productLeavesForRegion(region) {
@@ -3332,19 +3385,24 @@
     return out;
   }
 
+  // aggregate() is pure for a given leaf set + override state, and is called
+  // repeatedly for the same scopes within one render. Cache per render pass.
+  const _aggCache = new Map();
+  function aggCached(ck, leaves) {
+    let v = _aggCache.get(ck);
+    if (!v) { v = aggregate(leaves); _aggCache.set(ck, v); }
+    return v;
+  }
+  function productAgg(dest, gw, bandId) {
+    return aggCached('p|' + dest.id + '|' + gw.id + '|' + bandId, productLeaves(dest, gw, bandId));
+  }
+
   // ── Manual adjustments ─────────────────────────────────────
   // Two ways to nudge the engine's recommendation, mirroring the reference
   // demo: margin points (%) or a price move (£ pp). Both resolve to the same
-  // stored quantity — margin points — so the two inputs are just different
-  // views of one adjustment. A supplement (£ pp) is tracked separately and
-  // stays blank until someone enters one.
-  //
-  // Editing at ANY accordion level writes the value down onto every product
-  // beneath it, so a region edit propagates to its destinations and gateways.
-  // `ppt` is the pending, uncommitted adjustment. `sup` is the running total
-  // of everything already committed against the engine's baseline — the Sup
-  // column is a read-only view of it, so committing an adjustment clears the
-  // input and moves the value into Sup.
+  // stored quantity — margin points. `sup` is the running total already
+  // committed. Editing at ANY accordion level writes the value down onto
+  // every product beneath it.
   function adjOf(key) {
     const st = rowStates[key];
     return {
@@ -3352,31 +3410,40 @@
       sup: (st && typeof st.supPpt === 'number') ? st.supPpt : 0,
     };
   }
-  // Price move (£ pp) that a margin-point adjustment represents, at this
-  // product's blended economics.
-  function pptToGbp(dest, gw, ppt) {
+  function pptToGbp(dest, gw, band, ppt) {
     if (!ppt) return 0;
-    const agg = aggregate(productLeaves(dest, gw));
+    const agg = productAgg(dest, gw, band);
     const base = agg.recMarginPct;
     return Math.round(marginPctToPrice(agg.cost, base + ppt) - marginPctToPrice(agg.cost, base));
   }
-  function gbpToPpt(dest, gw, gbp) {
+  function gbpToPpt(dest, gw, band, gbp) {
     if (!gbp) return 0;
-    const agg = aggregate(productLeaves(dest, gw));
+    const agg = productAgg(dest, gw, band);
     const base = agg.recMarginPct;
     const newPrice = Math.max(agg.cost + 5, marginPctToPrice(agg.cost, base) + gbp);
-    const newMargin = ((newPrice - agg.cost) / newPrice) * 100;
-    return Math.round((newMargin - base) * 10) / 10;
+    return Math.round((((newPrice - agg.cost) / newPrice) * 100 - base) * 10) / 10;
   }
+
   // Final recommended margin: engine baseline + committed supplement + pending adjustment.
-  function productRecMargin(dest, gw) {
-    const agg = aggregate(productLeaves(dest, gw));
-    const a = adjOf(productKey(dest, gw));
+  function productRecMargin(dest, gw, band) {
+    const agg = productAgg(dest, gw, band);
+    const a = adjOf(productKey(dest, gw, band));
     const total = agg.recMarginPct + a.sup + a.ppt;
     return Math.max(2, Math.min(72, Math.round(total * 10) / 10));
   }
+  function productMarginPct(dest, gw, band) { return productAgg(dest, gw, band).marginPct; }
 
-  // Resolve a scope id ("region:x" | "dest:x" | "product:d|g") to its products.
+  // Every product under a scope, as {dest, gw, band} triples.
+  function productsUnder(scope, kind) {
+    const out = [];
+    const add = d => d.tickets.forEach(gw => LEAD_BANDS.forEach(b => {
+      if (productPasses(d, gw, b.id)) out.push({ dest: d, gw, band: b.id });
+    }));
+    if (kind === 'region') scope.dests.filter(parkMatchesFilter).forEach(add);
+    else if (kind === 'dest') add(scope);
+    else out.push(scope);
+    return out;
+  }
   function productsForScopeId(scopeId) {
     const [kind, rest] = scopeId.split(':');
     if (kind === 'region') {
@@ -3387,50 +3454,44 @@
       const d = PARKS.find(p => p.id === rest);
       return d ? productsUnder(d, 'dest') : [];
     }
-    const [dId, gId] = rest.split('|');
+    const [dId, gId, bId] = rest.split('|');
     const d = PARKS.find(p => p.id === dId);
     const gw = d && d.tickets.find(t => t.id === gId);
-    return (d && gw) ? [{ dest: d, gw }] : [];
+    return (d && gw) ? [{ dest: d, gw, band: bId }] : [];
   }
-
-  // Every product under a scope, as {dest, gw} pairs.
-  function productsUnder(scope, kind) {
+  function productKeysIn(dests) {
     const out = [];
-    const add = d => d.tickets.forEach(gw => { if (productPasses(d, gw)) out.push({ dest: d, gw }); });
-    if (kind === 'region') scope.dests.filter(parkMatchesFilter).forEach(add);
-    else if (kind === 'dest') add(scope);
-    else out.push(scope);
+    dests.filter(parkMatchesFilter).forEach(d => d.tickets.forEach(gw => LEAD_BANDS.forEach(b => {
+      if (productPasses(d, gw, b.id)) out.push(productKey(d, gw, b.id));
+    })));
     return out;
+  }
+  function productFromKey(key) {
+    for (const d of PARKS) for (const gw of d.tickets) for (const b of LEAD_BANDS)
+      if (productKey(d, gw, b.id) === key) return { dest: d, gw, band: b.id };
+    return null;
   }
   // Average of a per-product value across a scope — what a parent cell shows.
   function scopeAvg(products, fn) {
     if (!products.length) return 0;
     let sum = 0;
-    products.forEach(p => { sum += fn(p.dest, p.gw); });
+    products.forEach(p => { sum += fn(p.dest, p.gw, p.band); });
     return Math.round((sum / products.length) * 10) / 10;
   }
   // Write an adjustment down onto every product in scope.
   function applyAdjustment(products, field, value) {
-    products.forEach(({ dest, gw }) => {
-      const key = productKey(dest, gw);
+    products.forEach(({ dest, gw, band }) => {
+      const key = productKey(dest, gw, band);
       const st = rowStates[key] || (rowStates[key] = {});
       if (field === 'ppt') {
         if (!value) delete st.adjPpt; else st.adjPpt = value;
       } else if (field === 'gbp') {
-        const ppt = gbpToPpt(dest, gw, value);
+        const ppt = gbpToPpt(dest, gw, band, value);
         if (!ppt) delete st.adjPpt; else st.adjPpt = ppt;
       }
       if (st.adjPpt) st.state = st.state === 'rejected' ? st.state : 'overridden';
-      else if (st.state === 'overridden') delete st.state;
       cleanupState(key);
     });
-  }
-
-  // Sold-weighted recommendation for a product, before any override.
-  function productBaseRec(dest, gw) {
-    let num = 0, den = 0;
-    productLeaves(dest, gw).forEach(l => { num += leafTarget(l) * l.sold; den += l.sold; });
-    return den ? Math.round((num / den) * 10) / 10 : 0;
   }
 
   // Break the matrix down across a set of leaves, so a destination or region
@@ -3489,7 +3550,7 @@
 
   // Recommended margin for a leaf, honouring any manual override.
   function recMarginOf(leaf) {
-    const st = rowStates[productKey(leaf.park, leaf.ticket)];
+    const st = rowStates[productKey(leaf.park, leaf.ticket, leadBandFor(leaf.date.daysOut).id)];
     return (st && typeof st.overrideValue === 'number') ? st.overrideValue : leafTarget(leaf);
   }
   function recPriceOf(leaf) { return marginPctToPrice(leaf.cost, recMarginOf(leaf)); }
@@ -3789,15 +3850,15 @@
     // Anything else reads "mixed" — averaging a sparse supplement across a
     // region would invent a number nobody set.
     const uniform = fn => {
-      const vals = products.map(p => fn(p.dest, p.gw));
+      const vals = products.map(p => fn(p.dest, p.gw, p.band));
       if (!vals.length) return { v: 0, mixed: false };
       const first = vals[0];
       return vals.every(x => Math.abs(x - first) < 0.05)
         ? { v: Math.round(first * 10) / 10, mixed: false }
         : { v: 0, mixed: true };
     };
-    const p1 = uniform((d, g) => adjOf(productKey(d, g)).ppt);
-    const p2 = uniform((d, g) => pptToGbp(d, g, adjOf(productKey(d, g)).ppt));
+    const p1 = uniform((d, g, b) => adjOf(productKey(d, g, b)).ppt);
+    const p2 = uniform((d, g, b) => pptToGbp(d, g, b, adjOf(productKey(d, g, b)).ppt));
     const pct = p1.v, gbp = p2.v;
     const ph = st => st.mixed ? 'mixed' : '—';
     const cls = v => 'adj-input' + (v ? ' is-set' : '');
@@ -3825,10 +3886,10 @@
   function supCell(scopeId, products) {
     if (!products.length) return '<td class="num sup-cell-td"></td>';
     let ppt = 0, gbp = 0;
-    products.forEach(({ dest, gw }) => {
-      const v = adjOf(productKey(dest, gw)).sup;
+    products.forEach(({ dest, gw, band }) => {
+      const v = adjOf(productKey(dest, gw, band)).sup;
       ppt += v;
-      gbp += pptToGbp(dest, gw, v);
+      gbp += pptToGbp(dest, gw, band, v);
     });
     ppt = Math.round((ppt / products.length) * 10) / 10;
     gbp = Math.round(gbp / products.length);
@@ -3844,7 +3905,7 @@
   // Action cell — works at product, destination and region level. A decision
   // at a parent applies to every product beneath it.
   function scopeActionCell(scopeId, products) {
-    const keys = products.map(p => productKey(p.dest, p.gw));
+    const keys = products.map(p => productKey(p.dest, p.gw, p.band));
     const states = keys.map(k => (rowStates[k] || {}).state);
     const all = v => keys.length > 0 && states.every(x => x === v);
     const some = v => states.some(x => x === v);
@@ -3873,14 +3934,6 @@
     );
   }
 
-  function productMarginPct(dest, gw) { return aggregate(productLeaves(dest, gw)).marginPct; }
-  function productKeysIn(dests) {
-    const out = [];
-    dests.filter(parkMatchesFilter).forEach(d => d.tickets.forEach(gw => {
-      if (productPasses(d, gw)) out.push(productKey(d, gw));
-    }));
-    return out;
-  }
   function conversionCell(pct) {
     return '<span class="conv-cell">' + pct.toFixed(2) + '%</span>';
   }
@@ -3977,12 +4030,13 @@
   // Sort value for any table scope: region, destination, or product.
   function scopeSortValue(scope, key, kind) {
     if (key === 'name') {
-      if (kind === 'product') return scope.gw.label.toLowerCase();
+      if (kind === 'product') return scope.gw.label.toLowerCase() + '|' + scope.band;
       return scope.name.toLowerCase();
     }
+    if (key === 'lead') return kind === 'product' ? scope.band : '';
     const leaves = kind === 'region'  ? productLeavesForRegion(scope)
                  : kind === 'dest'    ? productLeavesFor(scope)
-                 : productLeaves(scope.dest, scope.gw);
+                 : productLeaves(scope.dest, scope.gw, scope.band);
     const agg = aggregate(leaves);
     if (key === 'alertCount') {
       const anchorId = kind === 'region' ? scope.dests[0].id : (kind === 'dest' ? scope.id : scope.dest.id);
@@ -3993,8 +4047,7 @@
     if (key === 'recMargin' || key === 'deltaPpt' || key === 'recAction') {
       let recM = agg.recMarginPct;
       if (kind === 'product') {
-        const st = rowStates[productKey(scope.dest, scope.gw)];
-        if (st && typeof st.overrideValue === 'number') recM = st.overrideValue;
+        recM = productRecMargin(scope.dest, scope.gw, scope.band);
       }
       const d = recM - agg.marginPct;
       if (key === 'recMargin') return recM;
@@ -4044,6 +4097,7 @@
   // aggregates the departures currently in range, and the Calendar view is
   // where the date dimension lives.
   function render() {
+    _aggCache.clear();
     const body = document.getElementById('srtBody');
     const out  = [];
     const sortKey = listSort.key;
@@ -4068,14 +4122,17 @@
         out.push(destRowHtml(dest, aggregate(destLeaves), destOpen, destLeaves));
         if (!destOpen) return;
 
-        let gws = dest.tickets.filter(gw => productPasses(dest, gw));
-        if (useSort) gws = sortByKey(gws, gw => scopeSortValue({ dest, gw }, sortKey, 'product'), isText);
-        gws.forEach(gw => out.push(productRowHtml(dest, gw)));
+        let prods = [];
+        dest.tickets.forEach(gw => LEAD_BANDS.forEach(b => {
+          if (productPasses(dest, gw, b.id)) prods.push({ dest, gw, band: b.id });
+        }));
+        if (useSort) prods = sortByKey(prods, pr => scopeSortValue(pr, sortKey, 'product'), isText);
+        prods.forEach(pr => out.push(productRowHtml(pr.dest, pr.gw, pr.band)));
       });
     });
 
     if (!out.length) {
-      out.push('<tr class="srt-empty"><td colspan="19">No matching rows for the current filters.</td></tr>');
+      out.push('<tr class="srt-empty"><td colspan="20">No matching rows for the current filters.</td></tr>');
     }
     body.innerHTML = out.join('');
     refreshHeaderCounts();
@@ -4084,8 +4141,8 @@
   // Shared trailing cells for an aggregate row (destination or region).
   function aggTailCells(agg, scopeId, products) {
     let up = 0, down = 0;
-    products.forEach(({ dest, gw }) => {
-      const d = productRecMargin(dest, gw) - aggregate(productLeaves(dest, gw)).marginPct;
+    products.forEach(({ dest, gw, band }) => {
+      const d = productRecMargin(dest, gw, band) - productMarginPct(dest, gw, band);
       if (d > 0.05) up++; else if (d < -0.05) down++;
     });
     const recSummary = (up || down)
@@ -4094,7 +4151,7 @@
           (down ? '<span class="ras-down">' + down + '↓</span>' : '') +
         '</span>'
       : '<span class="rec-action-summary ras-flat">—</span>';
-    const recM = scopeAvg(products, (d, g) => productRecMargin(d, g));
+    const recM = scopeAvg(products, (d, g, b) => productRecMargin(d, g, b));
     const delta = Math.round((recM - agg.marginPct) * 10) / 10;
     const dTint = tintFor(delta);
     return (
@@ -4134,6 +4191,7 @@
             '<span class="row-meta">' + region.dests.length + ' destinations</span>' +
           '</span>' +
         '</td>' +
+        '<td class="lead-cell"></td>' +
         alertsCellHtml(alerts) +
         aggTailCells(agg, 'region:' + region.id, productsUnder(region, 'region')) +
       '</tr>'
@@ -4158,31 +4216,33 @@
             '<span class="row-meta">' + dest.tickets.length + ' gateways</span>' +
           '</span>' +
         '</td>' +
+        '<td class="lead-cell"></td>' +
         alertsCellHtml(alerts) +
         aggTailCells(agg, 'dest:' + dest.id, productsUnder(dest, 'dest')) +
       '</tr>'
     );
   }
 
-  // ── Product (gateway) row ──
-  function productRowHtml(dest, gw) {
-    const key = productKey(dest, gw);
-    const scopeId = 'product:' + dest.id + '|' + gw.id;
-    const leaves = productLeaves(dest, gw);
-    const agg = aggregate(leaves);
+  // ── Product row: gateway x lead-time band ──
+  function productRowHtml(dest, gw, bandId) {
+    const key = productKey(dest, gw, bandId);
+    const scopeId = 'product:' + dest.id + '|' + gw.id + '|' + bandId;
+    const leaves = productLeaves(dest, gw, bandId);
+    const agg = productAgg(dest, gw, bandId);
     const st = rowStates[key] || {};
     const stateCls =
       st.state === 'accepted'   ? ' row-accepted' :
       st.state === 'rejected'   ? ' row-rejected' :
       st.state === 'overridden' ? ' row-overridden' : '';
-    const recM = productRecMargin(dest, gw);
+    const recM = productRecMargin(dest, gw, bandId);
     const delta = Math.round((recM - agg.marginPct) * 10) / 10;
     const tint = delta > 0.05 ? 'cell-pos' : (delta < -0.05 ? 'cell-neg' : '');
-    const products = [{ dest, gw }];
+    const products = [{ dest, gw, band: bandId }];
     const action = delta > 0.05 ? 'Increase' : delta < -0.05 ? 'Decrease' : 'No change';
+    const lb = leadBand(bandId);
 
     return (
-      '<tr class="row-leaf' + stateCls + '" data-key="' + esc(key) + '" data-dest="' + dest.id + '" data-gw="' + gw.id + '">' +
+      '<tr class="row-leaf' + stateCls + '" data-key="' + esc(key) + '" data-dest="' + dest.id + '" data-gw="' + gw.id + '" data-band="' + bandId + '">' +
         '<td class="col-select"><input type="checkbox" class="row-select leaf-select" data-key="' + esc(key) + '"' +
           (selectedKeys.has(key) ? ' checked' : '') + ' aria-label="Select row"></td>' +
         '<td class="col-name">' +
@@ -4190,6 +4250,7 @@
           '<span class="lvl-gw-name">' + esc(gw.label) + '</span>' +
           '<span class="gw-code">' + gw.code + '</span>' +
         '</td>' +
+        '<td class="lead-cell"><span class="lead-chip lead-' + bandId + '">' + lb.short + '</span></td>' +
         alertsCellHtml(unionAlertsWithRollup([], leaves)) +
 
         '<td class="num">' + fmtInt(agg.sessions) + '</td>' +
@@ -4296,7 +4357,7 @@
     const reasonSel = e.target.closest('select.reason-select');
     if (reasonSel) {
       productsForScopeId(reasonSel.dataset.key).forEach(pr => {
-        const k = productKey(pr.dest, pr.gw);
+        const k = productKey(pr.dest, pr.gw, pr.band);
         const st = rowStates[k] || (rowStates[k] = {});
         if (reasonSel.value) st.reason = reasonSel.value; else delete st.reason;
         cleanupState(k);
@@ -4306,17 +4367,13 @@
   });
 
   // Resolve a product key back to its destination + gateway.
-  function productFromKey(key) {
-    for (const d of PARKS) for (const gw of d.tickets) if (productKey(d, gw) === key) return { dest: d, gw };
-    return null;
-  }
   function baseRecFor(key) {
     const pr = productFromKey(key);
-    return pr ? aggregate(productLeaves(pr.dest, pr.gw)).recMarginPct : 0;
+    return pr ? productAgg(pr.dest, pr.gw, pr.band).recMarginPct : 0;
   }
   function currentMarginFor(key) {
     const pr = productFromKey(key);
-    return pr ? aggregate(productLeaves(pr.dest, pr.gw)).marginPct : 0;
+    return pr ? productAgg(pr.dest, pr.gw, pr.band).marginPct : 0;
   }
   function cleanupState(key) {
     const st = rowStates[key];
@@ -4391,7 +4448,7 @@
       const cell = actionBtn.closest('[data-scope]');
       if (!cell) return;
       const products = productsForScopeId(cell.dataset.scope);
-      const keys = products.map(pr => productKey(pr.dest, pr.gw));
+      const keys = products.map(pr => productKey(pr.dest, pr.gw, pr.band));
       if (!keys.length) return;
       const act = actionBtn.dataset.action;
       if (act === 'accept' || act === 'reject') {
@@ -4520,7 +4577,7 @@
     const text = noteTextarea.value.trim();
     const exp  = noteExpiry.value || '';
     productsForScopeId(activeNoteKey).forEach(pr => {
-      const k = productKey(pr.dest, pr.gw);
+      const k = productKey(pr.dest, pr.gw, pr.band);
       const st = rowStates[k] || (rowStates[k] = {});
       if (text) st.note = text; else delete st.note;
       if (exp)  st.noteExpiry = exp; else delete st.noteExpiry;
@@ -4572,13 +4629,14 @@
   // openModal({ level, key })              ← leaf level (key = stateKey)
   // openModal({ level, parkId, dateIso })  ← park level
   function openModal(opts) {
-    let park = null, gw = null, region = null, leaves = [];
+    let park = null, gw = null, region = null, band = null, leaves = [];
     if (opts.level === 'product') {
       park = PARKS.find(p => p.id === opts.destId);
       gw   = park && park.tickets.find(t => t.id === opts.gwId);
       if (!park || !gw) return;
       region = park.region;
-      leaves = productLeaves(park, gw);
+      band = opts.bandId;
+      leaves = productLeaves(park, gw, band);
     } else if (opts.level === 'dest') {
       park = PARKS.find(p => p.id === opts.destId);
       if (!park) return;
@@ -4590,7 +4648,7 @@
       leaves = productLeavesForRegion(region);
     }
     if (!leaves.length) return;
-    activeModal = { level: opts.level, park, gw, region, leaves };
+    activeModal = { level: opts.level, park, gw, region, band, leaves };
     lmOverrideValue = null;
     renderModal();
     lmBackdrop.classList.add('is-open');
@@ -4914,7 +4972,7 @@
   // ── Modal renderer (handles park / leaf levels) ──
   function renderModal() {
     if (!activeModal) return;
-    const { level, park, gw, region, leaves } = activeModal;
+    const { level, park, gw, region, band, leaves } = activeModal;
     const m = aggregateModalData(leaves);
     const agg = aggregate(leaves);
     const nDates = DATES.filter(dateInDateRange).length;
@@ -4922,8 +4980,9 @@
     let title, subtitle, key = null;
     if (level === 'product') {
       title = esc(park.name) + ' — ' + esc(gw.label);
-      key = productKey(park, gw);
-      subtitle = esc(region.name) + ' · ' + esc(park.countryName) + ' · ' + nDates + ' departures in range';
+      key = productKey(park, gw, band);
+      subtitle = esc(region.name) + ' · ' + esc(park.countryName) + ' · lead time ' +
+        esc(leadBand(band).label.toLowerCase()) + ' · ' + leaves.length + ' departures';
     } else if (level === 'dest') {
       title = esc(park.name);
       subtitle = esc(region.name) + ' · ' + park.tickets.length + ' gateways · ' + nDates + ' departures · aggregate';
@@ -4967,7 +5026,7 @@
         (function(){
           const sup = scopeAvg(productsForScopeId(level === 'product' ? 'product:' + park.id + '|' + gw.id
                      : level === 'dest' ? 'dest:' + park.id : 'region:' + region.id),
-                     (d, g) => adjOf(productKey(d, g)).sup);
+                     (d, g, b) => adjOf(productKey(d, g, b)).sup);
           return sup ? '<div class="lm-rec-row"><span class="label">Supplement</span><span class="value">' + fmtGbp(sup) + ' pp</span></div>' : '';
         })() +
         '<div class="lm-rec-row"><span class="label">Recommended margin</span><span class="value">' + recM.toFixed(1) + '%</span></div>' +
@@ -5038,12 +5097,6 @@
             '</div>' +
             breakdownHtml +
             recPanelHtml +
-            (function () {
-              const mk = level === 'product' ? key : (park ? park.id : region.id);
-              const markets = (park && SOURCE_MIX_BY_PARK[park.id]) || SOURCE_MIX_BY_PARK.faro;
-              return mixPanelHtml('Departure gateway mix', markets,
-                computeMixPcts(markets, mk, 'src', 4), (it, i) => SOURCE_COLORS[i] || '#94a3b8');
-            })() +
           '</div>' +
         '</div>' +
       '</div>';
@@ -5051,7 +5104,7 @@
     lmBackdrop.innerHTML = html;
     document.getElementById('lmCloseBtn').addEventListener('click', closeModal);
     const askBtn = document.getElementById('lmAskBtn');
-    if (askBtn) askBtn.addEventListener('click', () => openRowCopilot('product:' + park.id + '|' + gw.id));
+    if (askBtn) askBtn.addEventListener('click', () => openRowCopilot('product:' + park.id + '|' + gw.id + '|' + band));
 
     if (level === 'product') {
       document.getElementById('lmAccept').addEventListener('click', () => {
@@ -5229,7 +5282,7 @@
     const tr = e.target.closest('tr.row-leaf, tr.row-dest, tr.row-region');
     if (!tr) return;
     if (tr.classList.contains('row-leaf')) {
-      openModal({ level: 'product', destId: tr.dataset.dest, gwId: tr.dataset.gw });
+      openModal({ level: 'product', destId: tr.dataset.dest, gwId: tr.dataset.gw, bandId: tr.dataset.band });
     } else if (tr.classList.contains('row-dest')) {
       openModal({ level: 'dest', destId: tr.dataset.dest });
     } else {
@@ -5296,7 +5349,7 @@
 
   // ── Filter state ──
   const filters = {
-    region: [], country: [], park: [], ticket: [],
+    region: [], country: [], park: [], ticket: [], lead: [],
     daytype: [], alert: [], rec: [], action: [],
     dateRange: { start: null, end: null },
   };
@@ -5307,13 +5360,14 @@
     country:  uniqueSorted(PARKS.map(p => p.countryName)),
     park:     PARKS.map(p => p.name),
     ticket:   uniqueSorted(PARKS.flatMap(p => p.tickets.map(t => t.label))),
+    lead:     LEAD_BANDS.map(b => b.label),
     daytype:  ['Weekday', 'Weekend', 'Holiday'],
     alert:    ['Any alert', 'No alert'].concat(ALERT_ORDER.map(t => ALERT_META[t].label)),
     rec:      ['Increase', 'Decrease', 'No change'],
     action:   ['Pending', 'Accepted', 'Rejected', 'Overridden'],
   };
   const FILTER_LABELS = {
-    region: 'Regions', country: 'Countries', park: 'Destinations', ticket: 'Gateways',
+    region: 'Regions', country: 'Countries', park: 'Destinations', ticket: 'Gateways', lead: 'Lead Times',
     daytype: 'Departure Types', alert: 'Alerts', rec: 'Recommendations', action: 'Actions',
   };
 
@@ -5384,10 +5438,11 @@
   }
 
   // Product-level predicate: the table's row filter.
-  function productPasses(dest, gw) {
+  function productPasses(dest, gw, bandId) {
     if (!parkMatchesFilter(dest)) return false;
     if (filters.ticket.length && !filters.ticket.includes(gw.label)) return false;
-    const leaves = productLeaves(dest, gw);
+    if (filters.lead.length && !filters.lead.includes(leadBand(bandId).label)) return false;
+    const leaves = productLeaves(dest, gw, bandId);
     if (!leaves.length) return false;
     if (filters.daytype.length && !leaves.some(l => filters.daytype.includes(dateDayType(l.date)))) return false;
     if (filters.alert.length) {
@@ -5400,10 +5455,10 @@
       if (!ok) return false;
     }
     if (filters.rec.length || filters.action.length) {
-      const key = productKey(dest, gw);
+      const key = productKey(dest, gw, bandId);
       const st = rowStates[key] || {};
-      const agg = aggregate(leaves);
-      const recM = (typeof st.overrideValue === 'number') ? st.overrideValue : agg.recMarginPct;
+      const agg = productAgg(dest, gw, bandId);
+      const recM = agg.recMarginPct + adjOf(key).sup + adjOf(key).ppt;
       const d = recM - agg.marginPct;
       const rec = d > 0.05 ? 'Increase' : d < -0.05 ? 'Decrease' : 'No change';
       if (filters.rec.length && !filters.rec.includes(rec)) return false;
@@ -5414,7 +5469,7 @@
     return true;
   }
   function anyProductPassesIn(dest) {
-    return dest.tickets.some(gw => productPasses(dest, gw));
+    return dest.tickets.some(gw => LEAD_BANDS.some(b => productPasses(dest, gw, b.id)));
   }
   function anyProductPassesInRegion(region) {
     if (!regionMatchesFilter(region)) return false;
@@ -5531,6 +5586,7 @@
 
   // ── Calendar rendering ──
   function renderCalendar() {
+    _aggCache.clear();
     const periods = (calMode === 'daily' ? DAY_PERIODS : MONTH_PERIODS).filter(periodInDateRange);
 
     const sortCls = calSort.dir === 'asc' ? ' sort-asc' : (calSort.dir === 'desc' ? ' sort-desc' : '');
@@ -6263,13 +6319,14 @@
   //  applyFilters — single source of truth that re-renders both views
   // ─────────────────────────────────────────────────────────────
   function applyFilters() {
-    ['region', 'country', 'park', 'ticket', 'daytype', 'alert', 'rec', 'action'].forEach(updateMsTrigger);
+    ['region', 'country', 'park', 'ticket', 'lead', 'daytype', 'alert', 'rec', 'action'].forEach(updateMsTrigger);
     updateDateTrigger();
     const anyActive =
       filters.region.length  > 0 ||
       filters.country.length > 0 ||
       filters.park.length    > 0 ||
       filters.ticket.length  > 0 ||
+      filters.lead.length    > 0 ||
       filters.daytype.length > 0 ||
       filters.alert.length   > 0 ||
       filters.rec.length     > 0 ||
@@ -6294,6 +6351,7 @@
     filters.country = [];
     filters.park = [];
     filters.ticket = [];
+    filters.lead = [];
     filters.daytype = [];
     filters.alert = [];
     filters.rec = [];
@@ -6430,7 +6488,7 @@
     if (!leaves.length) return null;
     const agg = aggregate(leaves);
     const m = aggregateModalData(leaves);
-    const recM = scopeAvg(products, (d, g) => productRecMargin(d, g));
+    const recM = scopeAvg(products, (d, g, b) => productRecMargin(d, g, b));
     return {
       key: scopeId,
       scopeName: scopeLabel(scopeId),
