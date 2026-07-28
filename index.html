@@ -615,6 +615,19 @@
     input.adj-input.is-set { border-color: var(--accent); color: var(--accent-text); font-weight: 600; background: rgba(232,0,125,0.04); }
     .adj-unit, .adj-prefix { font-size: 10px; color: var(--text-muted); }
 
+    /* Margin-matrix breakdown table in the detail modal */
+    table.mx-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    table.mx-table td { padding: 5px 0; border-bottom: 1px solid var(--border); color: var(--text-primary); }
+    table.mx-table tr:last-child td { border-bottom: none; }
+    .mx-band { color: var(--text-muted); font-size: 10.5px; text-align: right; padding-right: 10px !important; }
+    .mx-ppt { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; white-space: nowrap; }
+    .mx-ppt.mx-up   { color: #166534; }
+    .mx-ppt.mx-down { color: #991b1b; }
+    .mx-ppt.mx-flat { color: var(--text-muted); font-weight: 500; }
+    tr.mx-base td { color: var(--text-secondary); font-weight: 600; }
+    tr.mx-total td { border-top: 1.5px solid var(--border-mid); font-weight: 700; padding-top: 8px; }
+    .mx-note { font-size: 10.5px; color: var(--text-muted); line-height: 1.5; margin-top: 10px; }
+
     /* Sup — read-only view of margin already committed on top of the baseline */
     table.srt tbody td.sup-cell-td { padding: 4px 8px; }
     .sup-cell { display: inline-flex; flex-direction: column; align-items: flex-end; line-height: 1.15; cursor: default; }
@@ -2537,8 +2550,8 @@
       <div class="cal-toolbar">
         <span class="cal-toolbar-label">Granularity</span>
         <div class="seg-toggle secondary" id="modeToggle" role="tablist" aria-label="Granularity">
-          <button type="button" data-mode="monthly" role="tab" aria-selected="false">Monthly</button>
-          <button type="button" class="active" data-mode="daily" role="tab" aria-selected="true">Daily</button>
+          <button type="button" class="active" data-mode="monthly" role="tab" aria-selected="true">Monthly</button>
+          <button type="button" data-mode="daily" role="tab" aria-selected="false">Daily</button>
         </div>
       </div>
       <div class="cal-scroll">
@@ -2670,7 +2683,7 @@
               <polyline points="2.5,5 9,8.4 15.5,5"/><line x1="9" y1="8.4" x2="9" y2="15.2"/>
             </svg>
           </span>
-          Package rules
+          Margin rules
         </a>
       </li>
       <li>
@@ -2894,6 +2907,188 @@
   });
   function destsInRegion(region) { return region.dests; }
 
+  // Acquisition-channel mix. Declared before the engine because leaf rows
+  // are built at load time and blend these shares into the margin matrix.
+  const CHANNEL_MIX = [
+    { id: 'direct',    label: 'Direct / organic', base: 34, color: '#e8007d' },
+    { id: 'crm',       label: 'CRM / email',      base: 18, color: '#a855f7' },
+    { id: 'paid',      label: 'Paid search',      base: 22, color: '#2563eb' },
+    { id: 'meta',      label: 'Metasearch',       base: 16, color: '#16a34a' },
+    { id: 'affiliate', label: 'Affiliate',        base: 10, color: '#f59e0b' },
+  ];
+
+  // ── Margin-rule matrix ─────────────────────────────────────
+  // Target margin is built ADDITIVELY: a base margin, plus one adjustment
+  // from each factor group, then clamped by guardrails. Every band is
+  // editable on the Package rules page. The intent is that these start as
+  // flat additive steps and are later learned — made larger, smaller or more
+  // granular — from observed conversion and contribution.
+  const MATRIX_DEFAULTS = {
+    baseMargin: 12.0,
+    guardrails: {
+      minMargin: 6.0,
+      maxMargin: 18.0,
+      maxUplift: 6.0,
+      maxReduction: 6.0,
+      minContribution: 75,     // £ per booking
+      learningRange: 1.5,      // ± ppt band Dynamica explores around target
+    },
+    groups: [
+      { id: 'comp',    label: 'Competitive position', metric: 'Price vs competitor benchmark',
+        bands: [
+          { id: 'c1', label: 'More than 5% below competitor', ppt:  2.0 },
+          { id: 'c2', label: '2–5% below competitor',         ppt:  1.0 },
+          { id: 'c3', label: 'Within ±2% of competitor',      ppt:  0.0 },
+          { id: 'c4', label: '2–5% above competitor',         ppt: -1.0 },
+          { id: 'c5', label: 'More than 5% above competitor', ppt: -2.0 },
+        ] },
+      { id: 'demand',  label: 'Demand and conversion', metric: 'Observed demand vs conversion target',
+        bands: [
+          { id: 'd1', label: 'Demand high, conversion above target',   ppt:  2.0 },
+          { id: 'd2', label: 'Demand high, conversion in line',        ppt:  1.0 },
+          { id: 'd3', label: 'Demand and conversion in line',          ppt:  0.0 },
+          { id: 'd4', label: 'Conversion moderately below target',     ppt: -1.0 },
+          { id: 'd5', label: 'Conversion materially below target',     ppt: -2.0 },
+        ] },
+      { id: 'basket',  label: 'Basket value', metric: 'Total package value per booking',
+        bands: [
+          { id: 'b1', label: 'Below £750',        ppt:  1.5 },
+          { id: 'b2', label: '£750–£1,499',       ppt:  0.5 },
+          { id: 'b3', label: '£1,500–£2,999',     ppt:  0.0 },
+          { id: 'b4', label: '£3,000–£4,999',     ppt: -0.5 },
+          { id: 'b5', label: '£5,000 or above',   ppt: -1.0 },
+        ] },
+      { id: 'channel', label: 'Booking channel', metric: 'Acquisition channel mix',
+        bands: [
+          { id: 'direct',   label: 'Direct / organic', ppt: -0.5 },
+          { id: 'crm',      label: 'CRM / email',      ppt:  0.0 },
+          { id: 'paid',     label: 'Paid search',      ppt:  0.5 },
+          { id: 'meta',     label: 'Metasearch',       ppt:  1.0 },
+          { id: 'affiliate',label: 'Affiliate',        ppt:  1.5 },
+        ] },
+      { id: 'window',  label: 'Departure window', metric: 'Days until departure',
+        bands: [
+          { id: 'w1', label: 'Within 7 days',        ppt:  1.5 },
+          { id: 'w2', label: '8–30 days',            ppt:  1.0 },
+          { id: 'w3', label: '31–90 days',           ppt:  0.0 },
+          { id: 'w4', label: '91–180 days',          ppt: -0.5 },
+          { id: 'w5', label: 'More than 180 days',   ppt: -1.0 },
+        ] },
+      { id: 'supplier', label: 'Supplier cost advantage', metric: 'Package cost vs benchmark',
+        bands: [
+          { id: 's1', label: 'More than 7% better than benchmark', ppt:  2.0 },
+          { id: 's2', label: '3–7% better than benchmark',         ppt:  1.0 },
+          { id: 's3', label: 'Within ±3% of benchmark',            ppt:  0.0 },
+          { id: 's4', label: '3–7% worse than benchmark',          ppt: -0.5 },
+          { id: 's5', label: 'More than 7% worse than benchmark',  ppt: -1.0 },
+        ] },
+    ],
+  };
+  const MATRIX_KEY = 'dynamica.smartrates.marginMatrix';
+  function loadMatrix() {
+    const def = JSON.parse(JSON.stringify(MATRIX_DEFAULTS));
+    try {
+      const raw = localStorage.getItem(MATRIX_KEY);
+      if (!raw) return def;
+      const p = JSON.parse(raw);
+      if (typeof p.baseMargin === 'number') def.baseMargin = p.baseMargin;
+      if (p.guardrails) Object.keys(def.guardrails).forEach(k => {
+        if (typeof p.guardrails[k] === 'number') def.guardrails[k] = p.guardrails[k];
+      });
+      if (Array.isArray(p.groups)) def.groups.forEach(g => {
+        const pg = p.groups.find(x => x.id === g.id);
+        if (!pg) return;
+        g.bands.forEach(b => {
+          const pb = (pg.bands || []).find(x => x.id === b.id);
+          if (pb && typeof pb.ppt === 'number') b.ppt = pb.ppt;
+        });
+      });
+      return def;
+    } catch (e) { return def; }
+  }
+  const MATRIX = loadMatrix();
+  const bandPpt = (groupId, bandId) => {
+    const g = MATRIX.groups.find(x => x.id === groupId);
+    const b = g && g.bands.find(x => x.id === bandId);
+    return b ? b.ppt : 0;
+  };
+  const bandLabel = (groupId, bandId) => {
+    const g = MATRIX.groups.find(x => x.id === groupId);
+    const b = g && g.bands.find(x => x.id === bandId);
+    return b ? b.label : '';
+  };
+  const groupLabel = id => (MATRIX.groups.find(g => g.id === id) || {}).label || id;
+
+  // ── Which band a leaf falls into, per factor ──
+  function bandFor(groupId, leaf) {
+    if (groupId === 'comp') {
+      const v = leaf.compIndex;                      // our price vs competitor, %
+      return v < -5 ? 'c1' : v < -2 ? 'c2' : v <= 2 ? 'c3' : v <= 5 ? 'c4' : 'c5';
+    }
+    if (groupId === 'demand') {
+      const high = leaf.demand > 62;                 // DL4 and above
+      const rel = leaf.conversion - leaf.convTarget; // ppt vs target
+      if (high && rel >  0.25) return 'd1';
+      if (high && rel >= -0.25) return 'd2';
+      if (rel < -1.0) return 'd5';
+      if (rel < -0.25) return 'd4';
+      return 'd3';
+    }
+    if (groupId === 'basket') {
+      const v = leaf.basketValue;
+      return v < 750 ? 'b1' : v < 1500 ? 'b2' : v < 3000 ? 'b3' : v < 5000 ? 'b4' : 'b5';
+    }
+    if (groupId === 'window') {
+      const d = leaf.daysToDeparture;
+      return d <= 7 ? 'w1' : d <= 30 ? 'w2' : d <= 90 ? 'w3' : d <= 180 ? 'w4' : 'w5';
+    }
+    if (groupId === 'supplier') {
+      const v = leaf.costIndex;                      // our cost vs benchmark, % (negative = better)
+      return v < -7 ? 's1' : v < -3 ? 's2' : v <= 3 ? 's3' : v <= 7 ? 's4' : 's5';
+    }
+    return null;
+  }
+
+  // Channel is a mix, not a single band: blend the bands by their share.
+  function channelContribution(leaf) {
+    let ppt = 0;
+    CHANNEL_MIX.forEach(c => { ppt += (leaf.channelMix[c.id] || 0) * bandPpt('channel', c.id); });
+    return Math.round(ppt * 100) / 100;
+  }
+
+  // ── The additive calculation, with guardrails ──
+  function matrixMargin(leaf) {
+    const gr = MATRIX.guardrails;
+    const lines = [];
+    MATRIX.groups.forEach(g => {
+      if (g.id === 'channel') {
+        const ppt = channelContribution(leaf);
+        const top = CHANNEL_MIX.slice().sort((a, b) =>
+          (leaf.channelMix[b.id] || 0) - (leaf.channelMix[a.id] || 0))[0];
+        lines.push({ group: g.id, label: g.label,
+          band: 'Blended · mostly ' + top.label, ppt });
+      } else {
+        const bid = bandFor(g.id, leaf);
+        lines.push({ group: g.id, label: g.label, band: bandLabel(g.id, bid), ppt: bandPpt(g.id, bid) });
+      }
+    });
+    const rawSum = lines.reduce((s, l) => s + l.ppt, 0);
+    // Cap the total movement away from base before clamping the absolute margin.
+    const capped = Math.max(-gr.maxReduction, Math.min(gr.maxUplift, rawSum));
+    const target = Math.max(gr.minMargin, Math.min(gr.maxMargin, MATRIX.baseMargin + capped));
+    return {
+      base: MATRIX.baseMargin,
+      lines,
+      rawSum: Math.round(rawSum * 100) / 100,
+      capped: Math.round(capped * 100) / 100,
+      upliftCapped: rawSum > gr.maxUplift,
+      reductionCapped: rawSum < -gr.maxReduction,
+      floored: MATRIX.baseMargin + capped < gr.minMargin,
+      ceilinged: MATRIX.baseMargin + capped > gr.maxMargin,
+      target: Math.round(target * 10) / 10,
+    };
+  }
+
   // ── Demand Levels (from the customisable-rules table) ──
   // Observed demand vs baseline/expected (in ppt) maps to DL1..DL5.
   const DEMAND_LEVELS = {
@@ -2918,11 +3113,11 @@
   }
   function demandLevelForScore(score) { return demandLevelFor(demandPpt(score)); }
 
-  // ── 30-day horizon from tomorrow (today = 2026-07-15) ──
+  // ── 180-day departure horizon from tomorrow (today = 2026-07-15) ──
   function buildDates() {
     const out = [];
     const start = new Date(Date.UTC(2026, 6, 16));   // 2026-07-16
-    for (let i = 0; i < 30; i++) {
+    for (let i = 0; i < 180; i++) {
       const d = new Date(start);
       d.setUTCDate(start.getUTCDate() + i);
       const y = d.getUTCFullYear();
@@ -2936,7 +3131,7 @@
       const label = String(d.getUTCDate()).padStart(2, '0') + ' ' +
                     ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getUTCMonth()];
       const dowLabel = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][dow];
-      out.push({ iso, label, dow, dowLabel, isWeekend, isHoliday });
+      out.push({ iso, label, dow, dowLabel, isWeekend, isHoliday, daysOut: i + 1 });
     }
     return out;
   }
@@ -3010,40 +3205,47 @@
     const yoy = Math.round(pick(r, -12, 18));
 
     // ── Package economics ──
-    // cost = contracted flight seat + hotel, per person. The operator buys the
-    // seat, so cost is an input, not a capacity constraint.
+    // Tour-operator margins are thin. Price is the shelf price per person;
+    // cost is what the seat and bed actually cost, set so today's margin sits
+    // in the 6-20% band the rule matrix operates in.
     const gwf = GW_FACTOR[ticket.id] || { cost: 1, price: 1 };
-    const seasonCost  = 1 + (date.isHoliday ? 0.16 : 0) + (date.isWeekend ? 0.06 : 0);
     const seasonPrice = 1 + (date.isHoliday ? 0.22 : 0) + (date.isWeekend ? 0.09 : 0);
-    const cost = Math.max(99, Math.round(park.cost * gwf.cost * seasonCost * pick(r, 0.96, 1.05)));
-    let current = Math.max(cost + 25, Math.round(park.price * gwf.price * seasonPrice * pick(r, 0.95, 1.06)));
-
-    // Thin-margin seed: ~9% of leaves are priced close to cost, so the
-    // margin-floor alert has real cases to catch.
-    const thinRng = rngFor('thin|' + key);
-    if (thinRng() < 0.09) current = Math.round(cost / (1 - pick(thinRng, 0.10, 0.17)));
-
+    const current = Math.max(199, Math.round(park.price * gwf.price * seasonPrice * pick(r, 0.95, 1.06)));
+    const liveMargin = pick(r, 6.5, 19.5);                 // margin in force today
+    const cost = Math.max(99, Math.round(current * (1 - liveMargin / 100) * gwf.cost));
     const marginPct = Math.round(((current - cost) / current) * 1000) / 10;
 
-    // ── Recommendation engine (rules-driven, on MARGIN) ──
-    // Demand level drives the margin move: high observed demand earns more
-    // margin, weak demand gives it back to stimulate conversion. DL3 holds,
-    // so most rows carry no change.
-    const dl = demandLevelFor(demandPpt(demand)).level;
-    let deltaPpt = 0;
-    if      (dl === 5) deltaPpt =  pick(r, 2.5, 5.0);
-    else if (dl === 4) deltaPpt =  pick(r, 1.0, 2.5);
-    else if (dl === 2) deltaPpt = -pick(r, 1.0, 2.5);
-    else if (dl === 1) deltaPpt = -pick(r, 2.5, 5.0);
+    // ── Inputs to the margin-rule matrix ──
+    const mr = rngFor('matrix|' + key);
+    // Where we sit against the competitor benchmark, and against the cost
+    // benchmark our buyers negotiate to. Both in %, negative = advantage.
+    // These are PRODUCT traits — a gateway's competitive position and the deal
+    // its buyers struck hold across the season — so they are seeded per
+    // destination x gateway with only mild per-departure drift. Re-rolling
+    // them per date would average every factor back to zero.
+    const pr = rngFor('pos|' + park.id + '|' + ticket.id);
+    const compBase = pick(pr, -8, 8);
+    const costBase = pick(pr, -9, 8);
+    const compIndex = Math.round((compBase + pick(mr, -1.5, 1.5)) * 10) / 10;
+    const costIndex = Math.round((costBase + pick(mr, -1.5, 1.5)) * 10) / 10;
+    // Basket value: a booking is rarely one person.
+    const partySize = 1.8 + pick(mr, 0, 1.6);
+    const basketValue = Math.round(current * partySize);
+    // Conversion target for this destination programme.
+    const convTarget = Math.round((4.4 + pick(pr, -0.6, 0.6)) * 100) / 100;
+    // Acquisition-channel mix for this product.
+    const cmRng = rngFor('chanmix|' + park.id + '|' + ticket.id);
+    const rawMix = {};
+    let mixTotal = 0;
+    CHANNEL_MIX.forEach(c => {
+      const v = Math.max(1, c.base + (cmRng() - 0.5) * 16);
+      rawMix[c.id] = v; mixTotal += v;
+    });
+    const channelMix = {};
+    CHANNEL_MIX.forEach(c => { channelMix[c.id] = rawMix[c.id] / mixTotal; });
+    const daysToDeparture = date.daysOut;
 
-    // Out-of-line seed: ~4% get a wild margin swing for the out-of-line alert.
-    const olRng = rngFor('outOfLine|' + key);
-    if (olRng() < 0.04) deltaPpt = (olRng() > 0.5 ? 1 : -1) * pick(olRng, 7, 11);
-
-    let recMarginPct = Math.round((marginPct + deltaPpt) * 10) / 10;
-    recMarginPct = Math.max(2, Math.min(72, recMarginPct));
-    const recPrice = marginPctToPrice(cost, recMarginPct);
-
+    // Everything the matrix needs is on the leaf by this point.
     return {
       key,
       park, ticket, date,
@@ -3051,7 +3253,8 @@
       sessions, conversion, sessionsRate,
       sold, fcst, ros, pctOfFcst,
       demand, demandExWx, yoy, wx,
-      cost, current, marginPct, recMarginPct, recPrice,
+      cost, current, marginPct,
+      compIndex, costIndex, basketValue, convTarget, channelMix, daysToDeparture, partySize,
       marginGbp: current - cost,
       revenue: sold * current,
     };
@@ -3225,14 +3428,47 @@
   // Sold-weighted recommendation for a product, before any override.
   function productBaseRec(dest, gw) {
     let num = 0, den = 0;
-    productLeaves(dest, gw).forEach(l => { num += l.recMarginPct * l.sold; den += l.sold; });
+    productLeaves(dest, gw).forEach(l => { num += leafTarget(l) * l.sold; den += l.sold; });
     return den ? Math.round((num / den) * 10) / 10 : 0;
   }
+
+  // Average the matrix, factor by factor, across a set of leaves — so a
+  // destination or region shows the same breakdown shape as one product.
+  function matrixBreakdown(leaves) {
+    if (!leaves.length) return null;
+    const first = leafMatrix(leaves[0]);
+    const lines = first.lines.map((l, i) => {
+      let ppt = 0;
+      const bands = {};
+      leaves.forEach(lf => {
+        const m = leafMatrix(lf);
+        ppt += m.lines[i].ppt;
+        bands[m.lines[i].band] = (bands[m.lines[i].band] || 0) + 1;
+      });
+      const top = Object.keys(bands).sort((a, b) => bands[b] - bands[a])[0];
+      const mixed = Object.keys(bands).length > 1;
+      return {
+        label: l.label,
+        band: mixed ? top + ' (mostly)' : top,
+        ppt: Math.round((ppt / leaves.length) * 100) / 100,
+      };
+    });
+    let target = 0, base = 0;
+    leaves.forEach(lf => { const m = leafMatrix(lf); target += m.target; base = m.base; });
+    return { base, lines, target: Math.round((target / leaves.length) * 10) / 10 };
+  }
+
+  // The matrix target for a leaf, cached — it is read many times per render.
+  function leafMatrix(leaf) {
+    if (!leaf._mx) leaf._mx = matrixMargin(leaf);
+    return leaf._mx;
+  }
+  function leafTarget(leaf) { return leafMatrix(leaf).target; }
 
   // Recommended margin for a leaf, honouring any manual override.
   function recMarginOf(leaf) {
     const st = rowStates[productKey(leaf.park, leaf.ticket)];
-    return (st && typeof st.overrideValue === 'number') ? st.overrideValue : leaf.recMarginPct;
+    return (st && typeof st.overrideValue === 'number') ? st.overrideValue : leafTarget(leaf);
   }
   function recPriceOf(leaf) { return marginPctToPrice(leaf.cost, recMarginOf(leaf)); }
 
@@ -3461,7 +3697,7 @@
     PARKS.forEach(park => {
       DATES.forEach(date => {
         const leaves = leavesFor(park, date);
-        const deltas = leaves.map(l => Math.abs(l.recMarginPct - l.marginPct));
+        const deltas = leaves.map(l => Math.abs(leafTarget(l) - l.marginPct));
         const sorted = deltas.slice().sort((a, b) => a - b);
         const median = sorted[Math.floor(sorted.length / 2)];
         const baseline = Math.max(median, 1.2);
@@ -4586,13 +4822,6 @@
   }
 
   // ── Booking channel / Departure gateway mix data ──
-  const CHANNEL_MIX = [
-    { id: 'web',    label: 'Website',      base: 42, color: '#e8007d' },
-    { id: 'app',    label: 'Mobile App',   base: 18, color: '#a855f7' },
-    { id: 'ota',    label: 'Partner OTA',  base: 22, color: '#2563eb' },
-    { id: 'retail', label: 'Retail Store', base: 10, color: '#16a34a' },
-    { id: 'call',   label: 'Call Centre',  base:  8, color: '#94a3b8' },
-  ];
   // UK departure gateways feeding each destination programme.
   const SOURCE_MIX_BY_PARK = {
     faro: [
@@ -4690,6 +4919,24 @@
       st.state === 'rejected'   ? '<span class="lm-state-tag b-rejected">Rejected</span>' :
       st.state === 'overridden' ? '<span class="lm-state-tag b-overridden">Overridden</span>' : '';
 
+    const bd = matrixBreakdown(leaves);
+    const breakdownHtml = bd ? (
+      '<div class="lm-panel">' +
+        '<div class="lm-panel-title">How the target margin is built</div>' +
+        '<table class="mx-table">' +
+          '<tbody>' +
+            '<tr class="mx-base"><td>Base margin</td><td class="mx-band"></td><td class="mx-ppt">' + bd.base.toFixed(1) + '%</td></tr>' +
+            bd.lines.map(l =>
+              '<tr><td>' + esc(l.label) + '</td>' +
+                '<td class="mx-band">' + esc(l.band) + '</td>' +
+                '<td class="mx-ppt ' + (l.ppt > 0.001 ? 'mx-up' : l.ppt < -0.001 ? 'mx-down' : 'mx-flat') + '">' +
+                  (l.ppt > 0 ? '+' : '') + l.ppt.toFixed(1) + 'ppt</td></tr>').join('') +
+            '<tr class="mx-total"><td>Target margin</td><td class="mx-band"></td><td class="mx-ppt">' + bd.target.toFixed(1) + '%</td></tr>' +
+          '</tbody>' +
+        '</table>' +
+        '<div class="mx-note">Additive by design. Dynamica learns whether each step should be larger, smaller or more granular from observed conversion and contribution.</div>' +
+      '</div>') : '';
+
     let recPanelHtml =
       '<div class="lm-panel">' +
         '<div class="lm-panel-title">Margin recommendation</div>' + stateTag +
@@ -4766,6 +5013,7 @@
                 '</tbody>' +
               '</table>' +
             '</div>' +
+            breakdownHtml +
             recPanelHtml +
             (function () {
               const mk = level === 'product' ? key : (park ? park.id : region.id);
@@ -5241,7 +5489,8 @@
   }
 
   // ── Calendar mode (daily / monthly) ──
-  let calMode = 'daily';
+  // 180 departures makes a daily grid very wide; months read better on open.
+  let calMode = 'monthly';
   function setCalMode(m) {
     calMode = m;
     document.querySelectorAll('#modeToggle button').forEach(b => {

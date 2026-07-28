@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Package rules — Dynamica SmartRates</title>
+  <title>Margin rules — Dynamica SmartRates</title>
   <link rel="stylesheet" href="styles.css" />
   <style>
     /* Autopilot — scoped to .ap- */
@@ -393,6 +393,58 @@
     .btn-ghost:hover { background: #f3f4f8; color: var(--text-primary); }
     .rules-editor-empty { display: flex; align-items: center; justify-content: center; height: 100%; }
     .re-hint { font-size: 11px; color: var(--text-muted); margin-top: 6px; line-height: 1.5; }
+
+    /* ── Margin-rule matrix ── */
+    .mx-wrap { flex: 1; overflow-y: auto; padding: 20px 24px 40px; }
+    .mx-layout { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 20px; align-items: start; max-width: 1280px; }
+    .mx-group {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius-lg); margin-bottom: 14px; overflow: hidden;
+    }
+    .mx-group-head {
+      display: flex; align-items: baseline; gap: 10px;
+      padding: 12px 16px; border-bottom: 1px solid var(--border); background: #fafbfc;
+    }
+    .mx-group-title { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+    .mx-group-metric { font-size: 11px; color: var(--text-muted); }
+    .mx-group-sum { margin-left: auto; font-size: 11px; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+    table.mx-bands { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+    table.mx-bands td { padding: 8px 16px; border-bottom: 1px solid var(--border); }
+    table.mx-bands tr:last-child td { border-bottom: none; }
+    table.mx-bands tr:hover td { background: var(--row-hover); }
+    .mx-cond { color: var(--text-primary); }
+    .mx-input-cell { width: 132px; text-align: right; white-space: nowrap; }
+    input.mx-input {
+      width: 68px; height: 28px; padding: 0 8px;
+      border: 1px solid var(--border-mid); border-radius: var(--radius);
+      font-family: 'Inter', sans-serif; font-size: 12.5px; font-weight: 600;
+      color: var(--text-primary); text-align: right; font-variant-numeric: tabular-nums;
+      -moz-appearance: textfield;
+    }
+    input.mx-input::-webkit-outer-spin-button, input.mx-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+    input.mx-input:hover { border-color: var(--accent); }
+    input.mx-input:focus { outline: 1.5px solid var(--accent); outline-offset: -1px; border-color: var(--accent); }
+    input.mx-input.pos { color: #166534; }
+    input.mx-input.neg { color: #991b1b; }
+    .mx-unit { font-size: 11px; color: var(--text-muted); margin-left: 6px; }
+
+    .mx-side { position: sticky; top: 0; display: flex; flex-direction: column; gap: 14px; }
+    .mx-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 16px 18px; }
+    .mx-card-title {
+      font-size: 11px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .06em; color: var(--text-muted); margin-bottom: 12px;
+    }
+    .mx-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 6px 0; font-size: 12.5px; }
+    .mx-row label { color: var(--text-secondary); }
+    .mx-row .v { font-weight: 600; font-variant-numeric: tabular-nums; }
+    .mx-base-input { width: 78px; }
+    .mx-example td { padding: 5px 0; font-size: 12px; border-bottom: 1px solid var(--border); }
+    .mx-example tr:last-child td { border-bottom: none; }
+    .mx-example .num { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; white-space: nowrap; }
+    .mx-example .up { color: #166534; } .mx-example .down { color: #991b1b; } .mx-example .flat { color: var(--text-muted); }
+    .mx-example tr.total td { border-top: 1.5px solid var(--border-mid); font-weight: 700; padding-top: 8px; }
+    .mx-hint { font-size: 11px; color: var(--text-muted); line-height: 1.55; margin-top: 10px; }
+    @media (max-width: 1180px) { .mx-layout { grid-template-columns: 1fr; } .mx-side { position: static; } }
   </style>
 </head>
 <body>
@@ -419,29 +471,18 @@
   <main class="ap-page">
 
     <div class="ap-header-row">
-      <h1 class="ap-heading">Package rules</h1>
-      <span class="ap-subtle">Conditions and margin actions — evaluated top to bottom, first match wins</span>
+      <h1 class="ap-heading">Margin rules</h1>
+      <span class="ap-subtle">Additive matrix — base margin plus one adjustment per factor, then guardrails</span>
       <div class="ap-spacer"></div>
-      <button class="ap-reset-btn" type="button" id="rulesReset">Reset to defaults</button>
+      <button class="ap-reset-btn" type="button" id="mxReset">Reset to defaults</button>
     </div>
 
     <div class="ap-kpis" id="apKpis"></div>
 
-    <div class="rules-shell">
-      <div class="rules-list-pane">
-        <div class="rules-list-head">
-          <div class="rules-list-title">Rules</div>
-          <button class="btn-primary" type="button" id="newRuleBtn">+ New rule</button>
-        </div>
-        <div class="rules-list" id="rulesList"></div>
-      </div>
-      <div class="rules-editor-pane">
-        <div class="rules-editor-empty" id="rulesEditorEmpty">
-          <div style="font-size:13px;color:var(--text-muted);text-align:center;padding:60px 20px;">
-            Select a rule to edit, or click <strong>+ New rule</strong> to create one.
-          </div>
-        </div>
-        <div class="rules-editor" id="rulesEditor" style="display:none;"></div>
+    <div class="mx-wrap">
+      <div class="mx-layout">
+        <div id="mxGroups"></div>
+        <aside class="mx-side" id="mxSide"></aside>
       </div>
     </div>
 
@@ -496,7 +537,7 @@
               <polyline points="2.5,5 9,8.4 15.5,5"/><line x1="9" y1="8.4" x2="9" y2="15.2"/>
             </svg>
           </span>
-          Package rules
+          Margin rules
         </a>
       </li>
       <li>
@@ -545,225 +586,186 @@
 <script src="app.js"></script>
 <script>
 (function () {
-  const REGIONS = ['All regions','Western Mediterranean','Eastern Mediterranean','Canaries & Atlantic','Caribbean & Mexico'];
-  const DESTS = ['All destinations','Faro — Algarve','Palma — Mallorca','Alicante — Costa Blanca',
-    'Heraklion — Crete','Antalya — Turkey','Paphos — Cyprus','Tenerife South','Lanzarote — Arrecife',
-    'Funchal — Madeira','Cancún — Mexico','Punta Cana — Dominican Rep.','Montego Bay — Jamaica'];
-  const GATEWAYS = ['All gateways','London Gatwick','Manchester','Birmingham','Glasgow','Bristol','London Stansted','Newcastle','Edinburgh'];
-  const METRICS = ['Demand level','Web sessions','Conversion %','Booking pace %','Package margin %','Supplement margin %','% target sold','Days to departure','Always apply'];
-  const OPS = ['>','<','=','>=','<=','between'];
-  const ACTIONS = ['Increase margin by ppt','Decrease margin by ppt','Set margin to %','Cap margin at %','Floor margin at %','Hold margin','Flag for review'];
-  const DEPARTURE_TYPES = ['Any','Weekday','Weekend','School holiday'];
-
-  const KEY = 'dynamica.smartrates.packageRules';
-  const DEFAULTS = [
-    { id:'r1', name:'High demand — take margin', status:'Active', region:'All regions', dest:'All destinations', gateway:'All gateways',
-      departureType:'Any', logic:'ALL',
-      conditions:[{metric:'Demand level',op:'>=',value:'DL4'},{metric:'Booking pace %',op:'>',value:'5'}],
-      action:{type:'Increase margin by ppt', value:'2.5'}, modified:'2026-07-24', by:'T. Hennessy' },
-    { id:'r2', name:'Soft demand — release margin', status:'Active', region:'All regions', dest:'All destinations', gateway:'All gateways',
-      departureType:'Any', logic:'ALL',
-      conditions:[{metric:'Demand level',op:'<=',value:'DL2'},{metric:'% target sold',op:'<',value:'80'}],
-      action:{type:'Decrease margin by ppt', value:'2.0'}, modified:'2026-07-24', by:'T. Hennessy' },
-    { id:'r3', name:'Margin floor — never sell below 18%', status:'Active', region:'All regions', dest:'All destinations', gateway:'All gateways',
-      departureType:'Any', logic:'ALL',
-      conditions:[{metric:'Package margin %',op:'<',value:'18'}],
-      action:{type:'Floor margin at %', value:'18'}, modified:'2026-07-22', by:'System' },
-    { id:'r4', name:'Caribbean — protect margin close to departure', status:'Active', region:'Caribbean & Mexico', dest:'All destinations', gateway:'All gateways',
-      departureType:'Any', logic:'ALL',
-      conditions:[{metric:'Days to departure',op:'<',value:'21'},{metric:'Package margin %',op:'<',value:'25'}],
-      action:{type:'Hold margin', value:''}, modified:'2026-07-20', by:'T. Hennessy' },
-    { id:'r5', name:'Weak conversion — flag for review', status:'Draft', region:'All regions', dest:'All destinations', gateway:'All gateways',
-      departureType:'Any', logic:'ALL',
-      conditions:[{metric:'Conversion %',op:'<',value:'2.6'},{metric:'Web sessions',op:'>',value:'5000'}],
-      action:{type:'Flag for review', value:''}, modified:'2026-07-25', by:'T. Hennessy' },
-    { id:'r6', name:'School holidays — cap margin at 45%', status:'Inactive', region:'All regions', dest:'All destinations', gateway:'All gateways',
-      departureType:'School holiday', logic:'ALL',
-      conditions:[{metric:'Always apply',op:'>',value:''}],
-      action:{type:'Cap margin at %', value:'45'}, modified:'2026-07-18', by:'System' },
+  const KEY = 'dynamica.smartrates.marginMatrix';
+  const DEFAULTS = {
+    baseMargin: 12.0,
+    guardrails: { minMargin: 6.0, maxMargin: 18.0, maxUplift: 6.0, maxReduction: 6.0, minContribution: 75, learningRange: 1.5 },
+    groups: [
+      { id:'comp', label:'Competitive position', metric:'Price vs competitor benchmark', bands:[
+        { id:'c1', label:'More than 5% below competitor', ppt: 2.0 },
+        { id:'c2', label:'2–5% below competitor',         ppt: 1.0 },
+        { id:'c3', label:'Within ±2% of competitor',      ppt: 0.0 },
+        { id:'c4', label:'2–5% above competitor',         ppt:-1.0 },
+        { id:'c5', label:'More than 5% above competitor', ppt:-2.0 } ] },
+      { id:'demand', label:'Demand and conversion', metric:'Observed demand vs conversion target', bands:[
+        { id:'d1', label:'Demand high, conversion above target', ppt: 2.0 },
+        { id:'d2', label:'Demand high, conversion in line',      ppt: 1.0 },
+        { id:'d3', label:'Demand and conversion in line',        ppt: 0.0 },
+        { id:'d4', label:'Conversion moderately below target',   ppt:-1.0 },
+        { id:'d5', label:'Conversion materially below target',   ppt:-2.0 } ] },
+      { id:'basket', label:'Basket value', metric:'Total package value per booking', bands:[
+        { id:'b1', label:'Below £750',      ppt: 1.5 },
+        { id:'b2', label:'£750–£1,499',     ppt: 0.5 },
+        { id:'b3', label:'£1,500–£2,999',   ppt: 0.0 },
+        { id:'b4', label:'£3,000–£4,999',   ppt:-0.5 },
+        { id:'b5', label:'£5,000 or above', ppt:-1.0 } ] },
+      { id:'channel', label:'Booking channel', metric:'Acquisition channel mix (blended by share)', bands:[
+        { id:'direct',    label:'Direct / organic', ppt:-0.5 },
+        { id:'crm',       label:'CRM / email',      ppt: 0.0 },
+        { id:'paid',      label:'Paid search',      ppt: 0.5 },
+        { id:'meta',      label:'Metasearch',       ppt: 1.0 },
+        { id:'affiliate', label:'Affiliate',        ppt: 1.5 } ] },
+      { id:'window', label:'Departure window', metric:'Days until departure', bands:[
+        { id:'w1', label:'Within 7 days',      ppt: 1.5 },
+        { id:'w2', label:'8–30 days',          ppt: 1.0 },
+        { id:'w3', label:'31–90 days',         ppt: 0.0 },
+        { id:'w4', label:'91–180 days',        ppt:-0.5 },
+        { id:'w5', label:'More than 180 days', ppt:-1.0 } ] },
+      { id:'supplier', label:'Supplier cost advantage', metric:'Package cost vs benchmark', bands:[
+        { id:'s1', label:'More than 7% better than benchmark', ppt: 2.0 },
+        { id:'s2', label:'3–7% better than benchmark',         ppt: 1.0 },
+        { id:'s3', label:'Within ±3% of benchmark',            ppt: 0.0 },
+        { id:'s4', label:'3–7% worse than benchmark',          ppt:-0.5 },
+        { id:'s5', label:'More than 7% worse than benchmark',  ppt:-1.0 } ] },
+    ],
+  };
+  // The worked example from the rule sheet, kept live against the current values.
+  const EXAMPLE = [
+    { group:'comp',     band:'c2', label:'4% cheaper than competitors' },
+    { group:'demand',   band:'d1', label:'High demand and strong conversion' },
+    { group:'basket',   band:'b4', label:'Package value of £3,500' },
+    { group:'channel',  band:'paid', label:'Paid-search customer' },
+    { group:'window',   band:'w2', label:'Departure in 20 days' },
+    { group:'supplier', band:'s2', label:'Supplier cost 5% better than benchmark' },
   ];
 
   function load(){
-    try{ const raw=localStorage.getItem(KEY); if(!raw) return JSON.parse(JSON.stringify(DEFAULTS));
-      const p=JSON.parse(raw); return Array.isArray(p)&&p.length?p:JSON.parse(JSON.stringify(DEFAULTS)); }
-    catch(e){ return JSON.parse(JSON.stringify(DEFAULTS)); }
+    const d = JSON.parse(JSON.stringify(DEFAULTS));
+    try{
+      const raw = localStorage.getItem(KEY); if(!raw) return d;
+      const p = JSON.parse(raw);
+      if (typeof p.baseMargin === 'number') d.baseMargin = p.baseMargin;
+      if (p.guardrails) Object.keys(d.guardrails).forEach(k=>{ if(typeof p.guardrails[k]==='number') d.guardrails[k]=p.guardrails[k]; });
+      if (Array.isArray(p.groups)) d.groups.forEach(g=>{
+        const pg=p.groups.find(x=>x.id===g.id); if(!pg) return;
+        g.bands.forEach(b=>{ const pb=(pg.bands||[]).find(x=>x.id===b.id); if(pb&&typeof pb.ppt==='number') b.ppt=pb.ppt; });
+      });
+      return d;
+    }catch(e){ return d; }
   }
-  function save(){ localStorage.setItem(KEY, JSON.stringify(rules)); }
-  let rules = load();
-  let selectedId = null;
-  let draft = null;
+  let M = load();
+  function save(){ localStorage.setItem(KEY, JSON.stringify(M)); }
+  const esc=s=>String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  const band=(gid,bid)=>{ const g=M.groups.find(x=>x.id===gid); return g&&g.bands.find(x=>x.id===bid); };
+  const cls=v=> v>0?'pos':v<0?'neg':'';
 
-  const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
-  const opts=(vals,sel)=>vals.map(v=>'<option value="'+esc(v)+'"'+(String(sel)===String(v)?' selected':'')+'>'+esc(v)+'</option>').join('');
-  function condStr(c){
-    if(c.metric==='Always apply') return 'Always apply';
-    return c.metric+' '+c.op+' '+(c.value===''?'—':c.value);
-  }
-  function actionStr(a){ return a.value!=='' && a.value!=null ? a.type+' '+a.value : a.type; }
-  function scopeStr(r){
-    const bits=[];
-    if(r.region!=='All regions') bits.push(r.region);
-    if(r.dest!=='All destinations') bits.push(r.dest);
-    if(r.gateway!=='All gateways') bits.push(r.gateway);
-    if(r.departureType && r.departureType!=='Any') bits.push(r.departureType);
-    return bits.length?bits.join(' · '):'All packages';
-  }
-
-  function renderKpis(){
-    const active=rules.filter(r=>r.status==='Active').length;
-    const draftN=rules.filter(r=>r.status==='Draft').length;
-    document.getElementById('apKpis').innerHTML =
-      '<div class="ap-kpi"><div class="label">Rules</div><div class="value">'+rules.length+'</div></div>'+
-      '<div class="ap-kpi k-auto"><div class="label">Active</div><div class="value">'+active+'</div></div>'+
-      '<div class="ap-kpi k-review"><div class="label">Draft</div><div class="value">'+draftN+'</div></div>'+
-      '<div class="ap-kpi"><div class="label">Evaluation</div><div class="value" style="font-size:14px;">Top to bottom · first match wins</div></div>';
-  }
-
-  function renderList(){
-    const list=document.getElementById('rulesList');
-    if(!rules.length){ list.innerHTML='<div style="padding:26px 14px;text-align:center;color:var(--text-muted);font-size:12px;">No package rules yet.</div>'; return; }
-    list.innerHTML = rules.map(r=>{
-      const sCls = r.status==='Active'?'rs-active':r.status==='Draft'?'rs-draft':'rs-inactive';
-      const cond = (r.conditions||[]).map(condStr).join(r.logic==='ANY'?'  OR  ':'  AND  ');
-      return '<div class="rule-card'+(r.id===selectedId?' active':'')+'" data-id="'+esc(r.id)+'">'+
-        '<div class="rc-top"><div class="rc-name">'+esc(r.name||'Untitled rule')+'</div>'+
-          '<span class="rule-status '+sCls+'">'+esc(r.status)+'</span></div>'+
-        '<div class="rc-meta">'+esc(scopeStr(r))+'</div>'+
-        '<div class="rc-cond">'+esc(cond||'No conditions')+'</div>'+
-        '<div class="rc-meta" style="margin-top:6px;">→ '+esc(actionStr(r.action))+'</div>'+
-        '<div class="rc-foot"><span>Modified '+esc(r.modified)+' · '+esc(r.by)+'</span>'+
-          '<div class="rc-actions">'+
-            '<button type="button" class="rc-icon-btn" data-act="edit" data-id="'+esc(r.id)+'">Edit</button>'+
-            '<button type="button" class="rc-icon-btn" data-act="toggle" data-id="'+esc(r.id)+'">'+(r.status==='Active'?'Pause':'Run')+'</button>'+
-            '<button type="button" class="rc-icon-btn" data-act="delete" data-id="'+esc(r.id)+'">Delete</button>'+
-          '</div></div></div>';
+  function renderGroups(){
+    document.getElementById('mxGroups').innerHTML = M.groups.map(g=>{
+      const span = Math.max(...g.bands.map(b=>b.ppt)) - Math.min(...g.bands.map(b=>b.ppt));
+      return '<div class="mx-group">'+
+        '<div class="mx-group-head">'+
+          '<span class="mx-group-title">'+esc(g.label)+'</span>'+
+          '<span class="mx-group-metric">'+esc(g.metric)+'</span>'+
+          '<span class="mx-group-sum">range '+span.toFixed(1)+'ppt</span>'+
+        '</div>'+
+        '<table class="mx-bands"><tbody>'+
+          g.bands.map(b=>'<tr>'+
+            '<td class="mx-cond">'+esc(b.label)+'</td>'+
+            '<td class="mx-input-cell">'+
+              '<input type="number" class="mx-input '+cls(b.ppt)+'" step="0.5" value="'+b.ppt.toFixed(1)+'" '+
+                'data-group="'+g.id+'" data-band="'+b.id+'" aria-label="'+esc(g.label+' — '+b.label)+'">'+
+              '<span class="mx-unit">ppt</span>'+
+            '</td></tr>').join('')+
+        '</tbody></table></div>';
     }).join('');
   }
 
-  function renderEditor(){
-    const empty=document.getElementById('rulesEditorEmpty');
-    const ed=document.getElementById('rulesEditor');
-    if(!draft){ empty.style.display=''; ed.style.display='none'; return; }
-    empty.style.display='none'; ed.style.display='';
-    const d=draft;
-    const noVal = d.action.type==='Hold margin' || d.action.type==='Flag for review';
-    const condRows=(d.conditions||[]).map((c,i)=>
-      '<div class="re-cond-row">'+
-        '<select class="re-select" data-cond="'+i+'" data-f="metric">'+opts(METRICS,c.metric)+'</select>'+
-        '<select class="re-select" data-cond="'+i+'" data-f="op"'+(c.metric==='Always apply'?' disabled':'')+'>'+opts(OPS,c.op)+'</select>'+
-        '<input class="re-input" data-cond="'+i+'" data-f="value" value="'+esc(c.value)+'"'+(c.metric==='Always apply'?' disabled':'')+'>'+
-        '<button type="button" class="re-x" data-cond-remove="'+i+'" aria-label="Remove condition">×</button>'+
-      '</div>').join('');
-    ed.innerHTML =
-      '<div class="re-header"><h3>'+esc(d.name||'New rule')+'</h3>'+
-        '<span class="rule-status '+(d.status==='Active'?'rs-active':d.status==='Draft'?'rs-draft':'rs-inactive')+'">'+esc(d.status)+'</span></div>'+
-      '<div class="re-field"><label class="re-label" for="rName">Rule name</label>'+
-        '<input class="re-input" id="rName" value="'+esc(d.name)+'"></div>'+
-      '<div class="re-grid">'+
-        '<div class="re-field"><label class="re-label" for="rRegion">Region</label><select class="re-select" id="rRegion">'+opts(REGIONS,d.region)+'</select></div>'+
-        '<div class="re-field"><label class="re-label" for="rDest">Destination</label><select class="re-select" id="rDest">'+opts(DESTS,d.dest)+'</select></div>'+
-        '<div class="re-field"><label class="re-label" for="rGw">Gateway</label><select class="re-select" id="rGw">'+opts(GATEWAYS,d.gateway)+'</select></div>'+
-        '<div class="re-field"><label class="re-label" for="rDep">Departure type</label><select class="re-select" id="rDep">'+opts(DEPARTURE_TYPES,d.departureType||'Any')+'</select></div>'+
+  function exampleRows(){
+    let sum = 0;
+    const rows = EXAMPLE.map(e=>{
+      const b = band(e.group, e.band); const v = b ? b.ppt : 0; sum += v;
+      return '<tr><td>'+esc(e.label)+'</td><td class="num '+(v>0?'up':v<0?'down':'flat')+'">'+
+        (v>0?'+':'')+v.toFixed(1)+'ppt</td></tr>';
+    }).join('');
+    const gr = M.guardrails;
+    const capped = Math.max(-gr.maxReduction, Math.min(gr.maxUplift, sum));
+    const target = Math.max(gr.minMargin, Math.min(gr.maxMargin, M.baseMargin + capped));
+    const notes = [];
+    if (capped !== sum) notes.push('total movement capped at ' + (sum>0?'+':'') + capped.toFixed(1) + 'ppt');
+    if (M.baseMargin + capped !== target) notes.push('clamped by the ' + (target===gr.minMargin?'minimum':'maximum') + ' margin guardrail');
+    return { rows, sum, target, notes };
+  }
+
+  function renderSide(){
+    const ex = exampleRows();
+    const gr = M.guardrails;
+    const g=(k,label,unit,step)=>'<div class="mx-row"><label for="gr_'+k+'">'+label+'</label>'+
+      '<span><input type="number" class="mx-input mx-base-input" id="gr_'+k+'" data-gr="'+k+'" step="'+(step||0.5)+'" value="'+gr[k]+'"><span class="mx-unit">'+unit+'</span></span></div>';
+    document.getElementById('mxSide').innerHTML =
+      '<div class="mx-card">'+
+        '<div class="mx-card-title">Base margin</div>'+
+        '<div class="mx-row"><label for="mxBase">Starting margin on all eligible packages</label>'+
+          '<span><input type="number" class="mx-input mx-base-input" id="mxBase" step="0.5" value="'+M.baseMargin.toFixed(1)+'"><span class="mx-unit">%</span></span></div>'+
       '</div>'+
-      '<div class="re-field"><label class="re-label">Conditions</label>'+
-        '<div class="re-logic">Match'+
-          '<label class="re-radio"><input type="radio" name="rLogic" value="ALL"'+(d.logic!=='ANY'?' checked':'')+'> all</label>'+
-          '<label class="re-radio"><input type="radio" name="rLogic" value="ANY"'+(d.logic==='ANY'?' checked':'')+'> any</label>'+
-        '</div>'+
-        condRows+
-        '<button type="button" class="re-add" id="addCond">+ Add condition</button>'+
+      '<div class="mx-card">'+
+        '<div class="mx-card-title">Guardrails</div>'+
+        g('minMargin','Minimum margin','%')+
+        g('maxMargin','Maximum margin','%')+
+        g('maxUplift','Max total uplift from base','ppt')+
+        g('maxReduction','Max total reduction from base','ppt')+
+        g('minContribution','Min contribution per booking','£',5)+
+        g('learningRange','Learning range around target','± ppt')+
       '</div>'+
-      '<div class="re-grid">'+
-        '<div class="re-field"><label class="re-label" for="rAction">Action</label><select class="re-select" id="rAction">'+opts(ACTIONS,d.action.type)+'</select></div>'+
-        '<div class="re-field"><label class="re-label" for="rActionVal">Value</label>'+
-          '<input class="re-input" id="rActionVal" value="'+esc(d.action.value)+'"'+(noVal?' disabled placeholder="not required"':'')+'></div>'+
-      '</div>'+
-      '<div class="re-field"><label class="re-label" for="rStatus">Status</label>'+
-        '<select class="re-select" id="rStatus">'+opts(['Active','Draft','Inactive'],d.status)+'</select>'+
-        '<div class="re-hint">Rules are evaluated in list order; the first rule whose conditions match sets the margin action for that package.</div></div>'+
-      '<div class="re-actions-bar">'+
-        '<button type="button" class="btn-ghost" id="cancelRule">Cancel</button>'+
-        '<button type="button" class="btn-primary" id="saveRule">Save rule</button>'+
+      '<div class="mx-card">'+
+        '<div class="mx-card-title">Worked example</div>'+
+        '<table class="mx-example"><tbody>'+
+          '<tr><td>Base margin</td><td class="num">'+M.baseMargin.toFixed(1)+'%</td></tr>'+
+          ex.rows+
+          '<tr class="total"><td>Calculated target margin</td><td class="num">'+ex.target.toFixed(1)+'%</td></tr>'+
+        '</tbody></table>'+
+        (ex.notes.length ? '<div class="mx-hint">'+esc(ex.notes.join(' · '))+'</div>' : '')+
+        '<div class="mx-hint">Adjustments are additive by design. Dynamica then learns whether each step should be larger, smaller or more granular from observed conversion and contribution — exploring within ±'+gr.learningRange+'ppt of the calculated target.</div>'+
       '</div>';
   }
 
-  function renderAll(){ renderKpis(); renderList(); renderEditor(); }
-
-  function blankRule(){
-    return { id:'r'+Date.now(), name:'New rule', status:'Draft', region:'All regions', dest:'All destinations',
-      gateway:'All gateways', departureType:'Any', logic:'ALL',
-      conditions:[{metric:'Demand level',op:'>=',value:'DL4'}],
-      action:{type:'Increase margin by ppt', value:'1.0'},
-      modified:'2026-07-27', by:'T. Hennessy' };
+  function renderKpis(){
+    const maxUp = M.groups.reduce((s,g)=>s+Math.max(...g.bands.map(b=>b.ppt)),0);
+    const maxDown = M.groups.reduce((s,g)=>s+Math.min(...g.bands.map(b=>b.ppt)),0);
+    const gr = M.guardrails;
+    document.getElementById('apKpis').innerHTML =
+      '<div class="ap-kpi"><div class="label">Base margin</div><div class="value">'+M.baseMargin.toFixed(1)+'%</div></div>'+
+      '<div class="ap-kpi k-auto"><div class="label">Theoretical max uplift</div><div class="value">+'+Math.min(maxUp,gr.maxUplift).toFixed(1)+
+        '<span class="unit">ppt'+(maxUp>gr.maxUplift?' (capped)':'')+'</span></div></div>'+
+      '<div class="ap-kpi k-review"><div class="label">Theoretical max reduction</div><div class="value">'+Math.max(maxDown,-gr.maxReduction).toFixed(1)+
+        '<span class="unit">ppt'+(maxDown<-gr.maxReduction?' (capped)':'')+'</span></div></div>'+
+      '<div class="ap-kpi"><div class="label">Margin corridor</div><div class="value">'+gr.minMargin.toFixed(0)+'–'+gr.maxMargin.toFixed(0)+'<span class="unit">%</span></div></div>';
   }
 
-  // ── Events ──
-  document.getElementById('newRuleBtn').addEventListener('click',()=>{
-    draft=blankRule(); selectedId=null; renderAll();
-  });
-  document.getElementById('rulesList').addEventListener('click',e=>{
-    const btn=e.target.closest('.rc-icon-btn');
-    if(btn){
-      e.stopPropagation();
-      const id=btn.dataset.id; const i=rules.findIndex(r=>r.id===id);
-      if(i<0) return;
-      if(btn.dataset.act==='delete'){ rules.splice(i,1); if(selectedId===id){selectedId=null;draft=null;} save(); renderAll(); return; }
-      if(btn.dataset.act==='toggle'){ rules[i].status = rules[i].status==='Active'?'Inactive':'Active'; save(); renderAll(); return; }
-      selectedId=id; draft=JSON.parse(JSON.stringify(rules[i])); renderAll(); return;
-    }
-    const card=e.target.closest('.rule-card');
-    if(!card) return;
-    selectedId=card.dataset.id;
-    const r=rules.find(x=>x.id===selectedId);
-    draft = r?JSON.parse(JSON.stringify(r)):null;
-    renderAll();
-  });
+  function renderAll(){ renderGroups(); renderSide(); renderKpis(); }
 
-  const ed=document.getElementById('rulesEditor');
-  ed.addEventListener('input',e=>{
-    if(!draft) return;
+  document.addEventListener('change', e=>{
     const t=e.target;
-    if(t.id==='rName') draft.name=t.value;
-    else if(t.id==='rActionVal') draft.action.value=t.value;
-    else if(t.dataset.cond!=null && t.dataset.f==='value') draft.conditions[+t.dataset.cond].value=t.value;
-  });
-  ed.addEventListener('change',e=>{
-    if(!draft) return;
-    const t=e.target;
-    if(t.id==='rRegion') draft.region=t.value;
-    else if(t.id==='rDest') draft.dest=t.value;
-    else if(t.id==='rGw') draft.gateway=t.value;
-    else if(t.id==='rDep') draft.departureType=t.value;
-    else if(t.id==='rStatus'){ draft.status=t.value; renderEditor(); }
-    else if(t.id==='rAction'){ draft.action.type=t.value; renderEditor(); }
-    else if(t.name==='rLogic') draft.logic=t.value;
-    else if(t.dataset.cond!=null){
-      const c=draft.conditions[+t.dataset.cond];
-      c[t.dataset.f]=t.value;
-      if(t.dataset.f==='metric') renderEditor();
-    }
-  });
-  ed.addEventListener('click',e=>{
-    if(!draft) return;
-    if(e.target.id==='addCond'){ draft.conditions.push({metric:'Package margin %',op:'<',value:'20'}); renderEditor(); return; }
-    const rm=e.target.closest('[data-cond-remove]');
-    if(rm){ draft.conditions.splice(+rm.dataset.condRemove,1); renderEditor(); return; }
-    if(e.target.id==='cancelRule'){ draft=null; selectedId=null; renderAll(); return; }
-    if(e.target.id==='saveRule'){
-      draft.modified='2026-07-27';
-      const i=rules.findIndex(r=>r.id===draft.id);
-      if(i>=0) rules[i]=draft; else rules.push(draft);
-      selectedId=draft.id;
-      draft=JSON.parse(JSON.stringify(draft));
+    if(t.classList.contains('mx-input')){
+      const v=parseFloat(t.value);
+      if(isNaN(v)){ renderAll(); return; }
+      if(t.id==='mxBase') M.baseMargin=Math.max(0,Math.min(60,v));
+      else if(t.dataset.gr) M.guardrails[t.dataset.gr]=Math.max(0,v);
+      else if(t.dataset.group){
+        const b=band(t.dataset.group,t.dataset.band);
+        if(b) b.ppt=Math.max(-10,Math.min(10,Math.round(v*10)/10));
+      }
       save(); renderAll();
-      const t=document.getElementById('appToast');
-      t.textContent='Rule saved'; t.classList.add('show');
-      clearTimeout(window.__rt); window.__rt=setTimeout(()=>t.classList.remove('show'),2200);
+      const toast=document.getElementById('appToast');
+      toast.textContent='Rule saved — the Pricing page recalculates on next load';
+      toast.classList.add('show');
+      clearTimeout(window.__mt); window.__mt=setTimeout(()=>toast.classList.remove('show'),2400);
     }
   });
-
-  document.getElementById('rulesReset').addEventListener('click',()=>{
-    rules=JSON.parse(JSON.stringify(DEFAULTS)); selectedId=null; draft=null; save(); renderAll();
+  document.addEventListener('keydown', e=>{
+    if(e.key==='Enter' && e.target.classList.contains('mx-input')) e.target.blur();
+  });
+  document.getElementById('mxReset').addEventListener('click',()=>{
+    M=JSON.parse(JSON.stringify(DEFAULTS)); save(); renderAll();
   });
 
   renderAll();
