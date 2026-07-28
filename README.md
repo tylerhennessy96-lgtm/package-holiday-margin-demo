@@ -21,17 +21,20 @@ Demand comes from **observed web traffic** — sessions and conversion. The
 operator does not own the flights, so there is no seat capacity, load factor or
 booking curve anywhere in the model.
 
-**Adjustments** sit on every row at every level: margin points (ppt), a price
-move (£ per person), and a supplement (£ per person). Edit one on a region or
-destination and it propagates to every product beneath it. A parent shows a
-value only when its children agree — otherwise it reads "mixed" rather than
-inventing an average.
+**Adjustments** sit on every row at every level: margin points (ppt) and a
+price move (£ per person). Edit one on a region or destination and it
+propagates to every product beneath it. A parent shows a value only when its
+children agree — otherwise it reads "mixed" rather than inventing an average.
+
+**Sup** is read-only. Committing folds the pending adjustment into it and
+clears the inputs, so it accumulates a running total of the margin added on top
+of the engine's baseline.
 
 ## Pages
 
 | Page | What it does |
 | --- | --- |
-| **Pricing** (`index.html`) | Region → Destination → Gateway accordion. Each row aggregates the departures in range — the Calendar view carries the date dimension. Filters, sorting, alerts, demand levels, margin, and three adjustment inputs (ppt / £ / supplement) usable at any level with propagation. Accept, reject, reasons, notes and Ask work at every level. Bulk margin update, detail modals, Margin Copilot mock. |
+| **Pricing** (`index.html`) | Region → Destination → Gateway accordion. Each row aggregates the departures in range — the Calendar view carries the date dimension. Filters, sorting, alerts, demand levels, margin, two adjustment inputs (ppt / £) usable at any level with propagation, and a read-only Sup column of committed margin. Accept, reject, reasons, notes and Ask work at every level. Bulk margin update, detail modals, Margin Copilot mock. |
 | **Autopilot** (`autopilot.html`) | Same three-level accordion, where every row carries its own auto-accept margin band (±ppt) and peak-day switch, inherited gateway → destination → region. |
 | **Alert rules** (`alerts.html`) | Same accordion again, carrying per-row alert thresholds (low pace, margin floor, conversion) with the same inheritance and per-row reset. |
 | **Package rules** (`package-rules.html`) | Two-pane rule builder: scope a rule to a region, destination, gateway and departure type, add ALL/ANY conditions over demand, traffic, pace or margin, and set a margin action. Evaluated top to bottom, first match wins. |

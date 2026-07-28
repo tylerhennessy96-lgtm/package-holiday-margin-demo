@@ -615,6 +615,14 @@
     input.adj-input.is-set { border-color: var(--accent); color: var(--accent-text); font-weight: 600; background: rgba(232,0,125,0.04); }
     .adj-unit, .adj-prefix { font-size: 10px; color: var(--text-muted); }
 
+    /* Sup — read-only view of margin already committed on top of the baseline */
+    table.srt tbody td.sup-cell-td { padding: 4px 8px; }
+    .sup-cell { display: inline-flex; flex-direction: column; align-items: flex-end; line-height: 1.15; cursor: default; }
+    .sup-cell .sup-pct { font-size: 11px; font-weight: 600; font-variant-numeric: tabular-nums; }
+    .sup-cell .sup-gbp { font-size: 9.5px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+    .sup-cell.sup-up   .sup-pct { color: #166534; }
+    .sup-cell.sup-down .sup-pct { color: #991b1b; }
+
     /* Bulk button idle state — clickable, just visually quiet */
     .accept-all-btn.is-idle { opacity: 0.62; }
 
@@ -2513,7 +2521,7 @@
             <th class="num sortable" data-sort-key="margin" data-sort-type="num"><span class="th-inner"><span class="th-text">Margin<span class="sub">package</span></span><span class="sort-ind" aria-hidden="true"><span class="sa-up">▲</span><span class="sa-down">▼</span></span></span></th>
             <th class="num"><span class="th-inner"><span class="th-text">Adjust<span class="sub">margin ppt</span></span></span></th>
             <th class="num"><span class="th-inner"><span class="th-text">Adjust<span class="sub">price pp</span></span></span></th>
-            <th class="num"><span class="th-inner"><span class="th-text">Sup<span class="sub">£ pp</span></span></span></th>
+            <th class="num"><span class="th-inner"><span class="th-text">Sup<span class="sub">committed</span></span></span></th>
             <th class="num sortable" data-sort-key="recMargin" data-sort-type="num"><span class="th-inner"><span class="th-text">Rec.<span class="sub">margin</span></span><span class="sort-ind" aria-hidden="true"><span class="sa-up">▲</span><span class="sa-down">▼</span></span></span></th>
             <th class="num sortable" data-sort-key="deltaPpt" data-sort-type="num"><span class="th-inner"><span class="th-text">Δ<span class="sub">ppt</span></span><span class="sort-ind" aria-hidden="true"><span class="sa-up">▲</span><span class="sa-down">▼</span></span></span></th>
             <th class="sortable" data-sort-key="recAction" data-sort-type="num"><span class="th-inner"><span class="th-text">Recommendation</span><span class="sort-ind" aria-hidden="true"><span class="sa-up">▲</span><span class="sa-down">▼</span></span></span></th>
@@ -3129,11 +3137,15 @@
   //
   // Editing at ANY accordion level writes the value down onto every product
   // beneath it, so a region edit propagates to its destinations and gateways.
+  // `ppt` is the pending, uncommitted adjustment. `sup` is the running total
+  // of everything already committed against the engine's baseline — the Sup
+  // column is a read-only view of it, so committing an adjustment clears the
+  // input and moves the value into Sup.
   function adjOf(key) {
     const st = rowStates[key];
     return {
       ppt: (st && typeof st.adjPpt === 'number') ? st.adjPpt : 0,
-      sup: (st && typeof st.supGbp === 'number') ? st.supGbp : 0,
+      sup: (st && typeof st.supPpt === 'number') ? st.supPpt : 0,
     };
   }
   // Price move (£ pp) that a margin-point adjustment represents, at this
@@ -3152,20 +3164,11 @@
     const newMargin = ((newPrice - agg.cost) / newPrice) * 100;
     return Math.round((newMargin - base) * 10) / 10;
   }
-  // A supplement (£ pp) expressed as margin points on top of the base rec.
-  function supToPpt(dest, gw, sup) {
-    if (!sup) return 0;
-    const agg = aggregate(productLeaves(dest, gw));
-    const base = agg.recMarginPct;
-    const newPrice = Math.max(agg.cost + 5, marginPctToPrice(agg.cost, base) + sup);
-    return Math.round((((newPrice - agg.cost) / newPrice) * 100 - base) * 10) / 10;
-  }
-
-  // Final recommended margin for a product: engine + adjustment + supplement.
+  // Final recommended margin: engine baseline + committed supplement + pending adjustment.
   function productRecMargin(dest, gw) {
     const agg = aggregate(productLeaves(dest, gw));
     const a = adjOf(productKey(dest, gw));
-    const total = agg.recMarginPct + a.ppt + supToPpt(dest, gw, a.sup);
+    const total = agg.recMarginPct + a.sup + a.ppt;
     return Math.max(2, Math.min(72, Math.round(total * 10) / 10));
   }
 
@@ -3212,10 +3215,8 @@
       } else if (field === 'gbp') {
         const ppt = gbpToPpt(dest, gw, value);
         if (!ppt) delete st.adjPpt; else st.adjPpt = ppt;
-      } else if (field === 'sup') {
-        if (!value) delete st.supGbp; else st.supGbp = value;
       }
-      if (st.adjPpt || st.supGbp) st.state = st.state === 'rejected' ? st.state : 'overridden';
+      if (st.adjPpt) st.state = st.state === 'rejected' ? st.state : 'overridden';
       else if (st.state === 'overridden') delete st.state;
       cleanupState(key);
     });
@@ -3539,8 +3540,7 @@
     };
     const p1 = uniform((d, g) => adjOf(productKey(d, g)).ppt);
     const p2 = uniform((d, g) => pptToGbp(d, g, adjOf(productKey(d, g)).ppt));
-    const p3 = uniform((d, g) => adjOf(productKey(d, g)).sup);
-    const pct = p1.v, gbp = p2.v, sup = p3.v;
+    const pct = p1.v, gbp = p2.v;
     const ph = st => st.mixed ? 'mixed' : '—';
     const cls = v => 'adj-input' + (v ? ' is-set' : '');
     return (
@@ -3558,14 +3558,29 @@
             ' value="' + (gbp ? gbp : '') + '" placeholder="' + ph(p2) + '" aria-label="Price adjustment in pounds">' +
         '</span>' +
       '</td>' +
-      '<td class="num adj-cell">' +
-        '<span class="adj-wrap">' +
-          '<span class="adj-prefix">£</span>' +
-          '<input type="number" class="' + cls(sup) + '" step="5" data-scope="' + esc(scopeId) + '" data-adj="sup"' +
-            ' value="' + (sup ? sup : '') + '" placeholder="' + ph(p3) + '" aria-label="Supplement per person">' +
-        '</span>' +
-      '</td>'
+      supCell(scopeId, products)
     );
+  }
+
+  // Sup — read-only view of the margin already committed on top of the
+  // engine's baseline. Blank until something has been committed.
+  function supCell(scopeId, products) {
+    if (!products.length) return '<td class="num sup-cell-td"></td>';
+    let ppt = 0, gbp = 0;
+    products.forEach(({ dest, gw }) => {
+      const v = adjOf(productKey(dest, gw)).sup;
+      ppt += v;
+      gbp += pptToGbp(dest, gw, v);
+    });
+    ppt = Math.round((ppt / products.length) * 10) / 10;
+    gbp = Math.round(gbp / products.length);
+    if (!ppt) return '<td class="num sup-cell-td"></td>';
+    const cls = ppt > 0 ? 'sup-up' : 'sup-down';
+    return '<td class="num sup-cell-td" title="Margin committed on top of the engine baseline">' +
+      '<span class="sup-cell ' + cls + '">' +
+        '<span class="sup-pct">' + (ppt > 0 ? '+' : '') + ppt.toFixed(1) + 'ppt</span>' +
+        '<span class="sup-gbp">' + (gbp > 0 ? '+' : '') + fmtGbp(gbp) + '</span>' +
+      '</span></td>';
   }
 
   // Action cell — works at product, destination and region level. A decision
@@ -3576,13 +3591,17 @@
     const all = v => keys.length > 0 && states.every(x => x === v);
     const some = v => states.some(x => x === v);
     const accepted = all('accepted'), rejected = all('rejected');
-    const mixed = !accepted && !rejected && (some('accepted') || some('rejected') || some('overridden'));
+    const overridden = all('overridden');
+    // "Mixed" only means what it says — a scope whose products disagree.
+    const mixed = keys.length > 1 && !accepted && !rejected && !overridden &&
+      (some('accepted') || some('rejected') || some('overridden'));
     const reasons = [...new Set(keys.map(k => (rowStates[k] || {}).reason).filter(Boolean))];
     const reason = reasons.length === 1 ? reasons[0] : '';
     const hasNote = keys.some(k => { const st = rowStates[k]; return !!(st && st.note && String(st.note).trim()); });
-    const badge = accepted ? '<span class="action-badge b-accepted">Accepted</span>'
-                : rejected ? '<span class="action-badge b-rejected">Rejected</span>'
-                : mixed    ? '<span class="action-badge b-overridden">Mixed</span>'
+    const badge = accepted   ? '<span class="action-badge b-accepted">Accepted</span>'
+                : rejected   ? '<span class="action-badge b-rejected">Rejected</span>'
+                : overridden ? '<span class="action-badge b-overridden">Adjusted</span>'
+                : mixed      ? '<span class="action-badge b-overridden">Mixed</span>'
                 : '<span class="pending-chip">Pending</span>';
     const acceptClass = accepted ? 'solid' : (rejected ? 'dim' : '');
     const rejectClass = rejected ? 'solid' : (accepted ? 'dim' : '');
@@ -3961,7 +3980,7 @@
     let committable = 0;
     Object.keys(rowStates).forEach(k => {
       const st = rowStates[k];
-      if (st && (st.state || typeof st.overrideValue === 'number')) committable++;
+      if (st && (st.state || typeof st.adjPpt === 'number')) committable++;
     });
     const accBtn = document.getElementById('acceptAllBtn');
     const cmtBtn = document.getElementById('commitBtn');
@@ -4043,7 +4062,7 @@
   }
   function cleanupState(key) {
     const st = rowStates[key];
-    if (st && !st.state && typeof st.overrideValue !== 'number' && !st.note && !st.reason) delete rowStates[key];
+    if (st && !st.state && typeof st.adjPpt !== 'number' && !st.supPpt && !st.note && !st.reason) delete rowStates[key];
   }
 
   // Adjustment inputs — commit on change, Enter to confirm. Editing at a
@@ -5516,17 +5535,23 @@
     let n = 0;
     Object.keys(rowStates).forEach(k => {
       const st = rowStates[k];
-      if (st && (st.state || typeof st.overrideValue === 'number')) n++;
+      if (st && (st.state || typeof st.adjPpt === 'number')) n++;
     });
     btn.classList.add('is-loading');
     btn.querySelector('.commit-label').textContent = 'Committing…';
     setTimeout(() => {
       Object.keys(rowStates).forEach(k => {
         const st = rowStates[k];
+        // Fold the pending adjustment into the committed supplement, then
+        // clear the input so the row is ready for the next decision.
+        if (typeof st.adjPpt === 'number' && st.adjPpt) {
+          st.supPpt = Math.round(((st.supPpt || 0) + st.adjPpt) * 10) / 10;
+        }
+        delete st.adjPpt;
         delete st.state;
         delete st.overrideValue;
         delete st.reason;
-        if (!st.note && !st.noteExpiry) delete rowStates[k];
+        if (!st.note && !st.noteExpiry && !st.supPpt) delete rowStates[k];
       });
       btn.classList.remove('is-loading');
       render();
