@@ -724,7 +724,6 @@
           '<tr class="total"><td>Calculated target margin</td><td class="num">'+ex.target.toFixed(1)+'%</td></tr>'+
         '</tbody></table>'+
         (ex.notes.length ? '<div class="mx-hint">'+esc(ex.notes.join(' · '))+'</div>' : '')+
-        '<div class="mx-hint">Adjustments are additive by design. Dynamica then learns whether each step should be larger, smaller or more granular from observed conversion and contribution — exploring within ±'+gr.learningRange+'ppt of the calculated target.</div>'+
       '</div>';
   }
 

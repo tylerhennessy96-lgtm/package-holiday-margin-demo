@@ -21,11 +21,6 @@ value, booking channel, departure window, and supplier cost advantage — then
 clamped by guardrails (6–18% margin, ±6 ppt movement, £75 minimum contribution
 per booking). The detail modal shows the whole calculation line by line.
 
-The adjustments are deliberately flat and additive to start with. The intent is
-that Dynamica then learns whether each step should be larger, smaller or more
-granular from observed conversion and contribution, exploring within ±1.5 ppt
-of the calculated target.
-
 Demand comes from **observed web traffic** — sessions and conversion. The
 operator does not own the flights, so there is no seat capacity, load factor or
 booking curve anywhere in the model.
@@ -43,7 +38,7 @@ of the engine's baseline.
 
 | Page | What it does |
 | --- | --- |
-| **Pricing** (`index.html`) | Region → Destination → Lead time accordion. Each row aggregates the departures in range — the Calendar view carries the date dimension. Filters (including revenue manager, so an RM sees only their own book), sorting, alerts, demand levels, margin, two adjustment inputs (ppt / £) usable at any level with propagation, and a read-only Sup column of committed margin. Accept, reject, reasons, notes and Ask work at every level; accepting moves the live margin to the recommendation. Bulk accept and Bulk margin both act on whatever is ticked, at any level — tick a region and accept its whole book in one click. Bulk margin update, detail modals, Margin Copilot mock. |
+| **Pricing** (`index.html`) | Region → Destination → Lead time accordion. Each row aggregates the departures in range — the Calendar view carries the date dimension. Filters (including revenue manager, so an RM sees only their own book), sorting, alerts, demand levels, margin, two adjustment inputs (ppt / £) usable at any level with propagation, and a read-only Sup column of committed margin. Accept, reject, reasons, notes and Ask work at every level; accepting moves the live margin to the recommendation. Bulk action and Bulk margin both act on whatever is ticked, at any level — tick a region, then accept or reject its whole book in one click. Bulk margin update, detail modals, Margin Copilot mock. |
 | **Autopilot** (`autopilot.html`) | Same three-level accordion, where every row carries its own auto-accept margin band (±ppt) and peak-day switch, inherited lead-time band → destination → region. |
 | **Alert rules** (`alerts.html`) | Same accordion again, carrying per-row alert thresholds (low pace, margin floor, conversion) with the same inheritance and per-row reset. |
 | **Margin rules** (`package-rules.html`) | The additive matrix itself: every factor band and every guardrail is editable, with a live worked example that recalculates as you change them. Feeds the Pricing engine. |

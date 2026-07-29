@@ -2524,7 +2524,7 @@
           <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <polyline points="3,7 6,10 11,4"/>
           </svg>
-          <span class="accept-all-label">Bulk accept (0)</span>
+          <span class="accept-all-label">Bulk action (0)</span>
         </button>
         <button class="commit-btn" id="commitBtn" type="button" disabled>
           <span class="commit-spinner"></span>
@@ -2820,6 +2820,41 @@
     <div class="bulk-modal-footer">
       <button class="bulk-btn-ghost" type="button" id="bulkCancelBtn">Cancel</button>
       <button class="bulk-btn-primary" type="button" id="bulkApplyBtn" disabled>Apply to 0 rows</button>
+    </div>
+  </div>
+</div>
+
+<div class="bulk-backdrop" id="actBackdrop" aria-hidden="true">
+  <div class="bulk-modal" role="dialog" aria-modal="true" aria-labelledby="actTitle">
+    <div class="bulk-modal-header">
+      <div>
+        <div class="bulk-modal-title" id="actTitle">Bulk action</div>
+        <div class="bulk-modal-sub" id="actSub">0 rows selected</div>
+      </div>
+      <button class="bulk-modal-close" type="button" id="actCloseBtn" aria-label="Close">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
+          <line x1="3" y1="3" x2="11" y2="11"/>
+          <line x1="11" y1="3" x2="3" y2="11"/>
+        </svg>
+      </button>
+    </div>
+    <div class="bulk-modal-body">
+      <div class="bulk-type-row" role="radiogroup" aria-label="Action">
+        <label class="bulk-type-opt">
+          <input type="radio" name="actType" value="accept" checked>
+          <span>Accept recommendations</span>
+        </label>
+        <label class="bulk-type-opt">
+          <input type="radio" name="actType" value="reject">
+          <span>Reject recommendations</span>
+        </label>
+      </div>
+      <div class="bulk-hint" id="actHint"></div>
+      <div class="bulk-preview" id="actPreview"></div>
+    </div>
+    <div class="bulk-modal-footer">
+      <button class="bulk-btn-ghost" type="button" id="actCancelBtn">Cancel</button>
+      <button class="bulk-btn-primary" type="button" id="actApplyBtn">Apply to 0 rows</button>
     </div>
   </div>
 </div>
@@ -4411,7 +4446,7 @@
     btn.classList.toggle('is-idle', n === 0);
 
     const acc = document.getElementById('acceptAllBtn');
-    acc.querySelector('.accept-all-label').textContent = 'Bulk accept (' + n + ')';
+    acc.querySelector('.accept-all-label').textContent = 'Bulk action (' + n + ')';
     acc.disabled = false;
     acc.classList.toggle('is-idle', n === 0);
   }
@@ -4687,24 +4722,76 @@
   // ── Bulk accept + Commit ──
   // Ticking a region or destination selects every product beneath it, so this
   // accepts a whole region as readily as a single lead-time band.
+  // Accept and reject are the same operation over the same selection, so they
+  // share one modal rather than competing for toolbar space.
+  const actBackdrop = document.getElementById('actBackdrop');
+  const actApplyBtn = document.getElementById('actApplyBtn');
+  function actType() {
+    return document.querySelector('input[name="actType"]:checked').value;
+  }
+  function refreshActPreview() {
+    const type = actType();
+    const n = selectedKeys.size;
+    document.getElementById('actSub').textContent =
+      n + ' row' + (n === 1 ? '' : 's') + ' selected';
+    actApplyBtn.textContent = 'Apply to ' + n + ' row' + (n === 1 ? '' : 's');
+    document.getElementById('actHint').innerHTML = type === 'accept'
+      ? 'Each row\'s margin moves to its <b>recommended</b> margin and the row is marked <b>Accepted</b>.'
+      : 'Each row keeps its <b>current</b> margin and is marked <b>Rejected</b>, so it drops out of the review queue.';
+    const sample = [...selectedKeys].slice(0, 3).map(k => {
+      const pr = productFromKey(k);
+      if (!pr) return '<div class="bulk-preview-row"><span>' + esc(k) + '</span></div>';
+      const cur = productMarginPct(pr.dest, pr.band);
+      const rec = productRecMargin(pr.dest, pr.band);
+      const to  = type === 'accept' ? rec : cur;
+      return '<div class="bulk-preview-row"><span>' + esc(k) + '</span>' +
+        '<span>' + cur.toFixed(1) + '% → <b>' + to.toFixed(1) + '%</b></span></div>';
+    }).join('');
+    const more = n > 3 ? '<div class="bulk-preview-more">… and ' + (n - 3) + ' more</div>' : '';
+    document.getElementById('actPreview').innerHTML = sample + more;
+  }
+  function openActModal() {
+    refreshActPreview();
+    actBackdrop.classList.add('is-open');
+    actBackdrop.setAttribute('aria-hidden', 'false');
+  }
+  function closeActModal() {
+    actBackdrop.classList.remove('is-open');
+    actBackdrop.setAttribute('aria-hidden', 'true');
+  }
   document.getElementById('acceptAllBtn').addEventListener('click', () => {
     if (!selectedKeys.size) {
-      showToast('Tick one or more rows first, then use Bulk accept');
+      showToast('Tick one or more rows first, then use Bulk action');
       return;
     }
+    openActModal();
+  });
+  document.querySelectorAll('input[name="actType"]').forEach(r =>
+    r.addEventListener('change', refreshActPreview));
+  document.getElementById('actCloseBtn').addEventListener('click', closeActModal);
+  document.getElementById('actCancelBtn').addEventListener('click', closeActModal);
+  actBackdrop.addEventListener('click', e => { if (e.target === actBackdrop) closeActModal(); });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && actBackdrop.classList.contains('is-open')) closeActModal();
+  });
+  actApplyBtn.addEventListener('click', () => {
+    if (!selectedKeys.size) return;
+    const type = actType();
     let n = 0, already = 0;
     selectedKeys.forEach(key => {
       const st = rowStates[key];
-      if (st && st.state === 'accepted') { already++; return; }
-      rowStates[key] = Object.assign({}, st || {}, { state: 'accepted' });
+      if (st && st.state === type + 'ed') { already++; return; }
+      rowStates[key] = Object.assign({}, st || {}, { state: type + 'ed' });
       n++;
     });
     selectedKeys.clear();
+    closeActModal();
     render();
+    const verb = type === 'accept' ? 'Accepted' : 'Rejected';
     showToast(n === 0
-      ? 'Already accepted — no change'
-      : 'Accepted ' + n + ' recommendation' + (n === 1 ? '' : 's') +
-        (already ? ' (' + already + ' already accepted)' : ''));
+      ? 'Already ' + verb.toLowerCase() + ' — no change'
+      : verb + ' ' + n + ' recommendation' + (n === 1 ? '' : 's') +
+        (already ? ' (' + already + ' already ' + verb.toLowerCase() + ')' : ''));
   });
 
   // ─────────────────────────────────────────────────────────────
@@ -5138,7 +5225,6 @@
             '<tr class="mx-total"><td>Target margin</td><td class="mx-band"></td><td class="mx-ppt">' + bd.target.toFixed(1) + '%</td></tr>' +
           '</tbody>' +
         '</table>' +
-        '<div class="mx-note">Additive by design. Dynamica learns whether each step should be larger, smaller or more granular from observed conversion and contribution.</div>' +
       '</div>') : '';
 
     let recPanelHtml =
@@ -5153,7 +5239,7 @@
         })() +
         '<div class="lm-rec-row"><span class="label">Recommended margin</span><span class="value">' + recM.toFixed(1) + '%</span></div>' +
         '<div class="lm-rec-row"><span class="label">Change</span><span class="value pct ' + pctClass + '">' + signed(deltaPpt, 'ppt') + '</span></div>' +
-        '<div class="lm-rec-row"><span class="label">Margin banked</span><span class="value">' + fmtGbpK(agg.marginGbp) + '</span></div>';
+        '';
     if (level === 'product') {
       const acceptSolid = st.state === 'accepted' ? 'solid' : '';
       const rejectSolid = st.state === 'rejected' ? 'solid' : '';
@@ -5932,8 +6018,7 @@
     dmTotals.hidden = false;
     dmTotals.innerHTML =
       '<div><div class="label">Bookings</div><div class="value">' + agg.sold.toLocaleString('en-GB') + '</div></div>' +
-      '<div><div class="label">Margin</div><div class="value">' + fmtGbpK(agg.marginGbp) + '</div></div>' +
-      '<div><div class="label">Web sessions</div><div class="value">' + fmtInt(agg.sessions) + '</div></div>';
+      '<div><div class="label">Web sessions</div><div class="value">' + fmtCompact(agg.sessions) + '</div></div>';
 
     // Break the period down by destination (region scope) or gateway (destination scope).
     const groups = isRegion
@@ -5957,7 +6042,7 @@
           '</div>' +
           '<div></div>' +
           '<div class="dm-actions"><span style="font-size:10.5px;color:var(--text-muted);">' +
-            a.sold.toLocaleString('en-GB') + ' bookings · ' + fmtGbpK(a.marginGbp) + ' margin</span></div>' +
+            a.sold.toLocaleString('en-GB') + ' bookings</span></div>' +
         '</div>'
       );
     }).join('');
@@ -6630,7 +6715,7 @@
     const alertList = ctx.alertLabels.length ? ctx.alertLabels.join(', ') : 'none';
     return "Here's the margin position for " + ctx.park.name + " — " + leadBand(ctx.band).label +
       " across " + ctx.departures + " departures:\n" +
-      "• Package margin: " + ctx.marginPct.toFixed(1) + "% (" + fmtGbpK(ctx.marginGbp) + " banked)\n" +
+      "• Package margin: " + ctx.marginPct.toFixed(1) + "%\n" +
       "• Recommended: " + ctx.recMarginPct.toFixed(1) + "% (" + (ctx.deltaPpt > 0 ? '+' : '') + ctx.deltaPpt + "ppt)\n" +
       "• Web demand: " + fmtInt(ctx.sessions) + " sessions at " + ctx.conversion.toFixed(2) + "% conversion\n" +
       "• Booking pace: " + (ctx.pickup > 0 ? '+' : '') + ctx.pickup + "% vs historic · " + demandLevelForScore(ctx.demand).code + "\n" +
@@ -6721,7 +6806,7 @@
       const dir = ctx.deltaPpt > 0 ? 'demand is running ahead of expectation, so the rules take more margin'
                 : ctx.deltaPpt < 0 ? 'demand is behind expectation, so the rules give margin back to stimulate conversion'
                 : 'demand is in line with expectation, so the rules hold margin';
-      return 'Package margin is ' + ctx.marginPct.toFixed(1) + '% (' + fmtGbpK(ctx.marginGbp) + ' banked), ' +
+      return 'Package margin is ' + ctx.marginPct.toFixed(1) + '%, ' +
         '\n' +
         'Recommended ' + ctx.recMarginPct.toFixed(1) + '% (' + signed(ctx.deltaPpt, 'ppt') + ').\n' +
         'Driver: ' + dir + '. Accept to apply, or type a new margin straight into the row.';
