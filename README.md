@@ -43,8 +43,8 @@ of the engine's baseline.
 
 | Page | What it does |
 | --- | --- |
-| **Pricing** (`index.html`) | Region → Destination → Lead time accordion. Each row aggregates the departures in range — the Calendar view carries the date dimension. Filters (including revenue manager, so an RM sees only their own book), sorting, alerts, demand levels, margin, two adjustment inputs (ppt / £) usable at any level with propagation, and a read-only Sup column of committed margin. Accept, reject, reasons, notes and Ask work at every level; accepting moves the live margin to the recommendation. Bulk margin update, detail modals, Margin Copilot mock. |
-| **Autopilot** (`autopilot.html`) | Same three-level accordion, where every row carries its own auto-accept margin band (±ppt) and peak-day switch, inherited gateway → destination → region. |
+| **Pricing** (`index.html`) | Region → Destination → Lead time accordion. Each row aggregates the departures in range — the Calendar view carries the date dimension. Filters (including revenue manager, so an RM sees only their own book), sorting, alerts, demand levels, margin, two adjustment inputs (ppt / £) usable at any level with propagation, and a read-only Sup column of committed margin. Accept, reject, reasons, notes and Ask work at every level; accepting moves the live margin to the recommendation. Bulk accept and Bulk margin both act on whatever is ticked, at any level — tick a region and accept its whole book in one click. Bulk margin update, detail modals, Margin Copilot mock. |
+| **Autopilot** (`autopilot.html`) | Same three-level accordion, where every row carries its own auto-accept margin band (±ppt) and peak-day switch, inherited lead-time band → destination → region. |
 | **Alert rules** (`alerts.html`) | Same accordion again, carrying per-row alert thresholds (low pace, margin floor, conversion) with the same inheritance and per-row reset. |
 | **Margin rules** (`package-rules.html`) | The additive matrix itself: every factor band and every guardrail is editable, with a live worked example that recalculates as you change them. Feeds the Pricing engine. |
 | **Settings** (`settings.html`) | Global alert defaults that the per-row rules inherit from. |
@@ -58,8 +58,10 @@ of the engine's baseline.
 - **Gateway** — UK outbound departure points still drive cost and price underneath, but they are aggregated into the destination rather than shown as a level.
 
 Parent rows are true roll-ups: volumes sum, rates are revenue- or
-session-weighted, and margin is recomputed from summed revenue and summed cost
-so it always reconciles with the rows beneath it.
+session-weighted, and both the current and the recommended margin are
+recomputed from summed revenue and summed cost, so a parent always reconciles
+with the rows beneath it — accept every child and its delta lands on exactly
+zero.
 
 ## The margin matrix
 
@@ -92,8 +94,11 @@ Low pace · Margin below floor · High demand · Low demand · Conversion drop �
 Out-of-line move.
 
 Thresholds are set globally in Settings and can be overridden per region, per
-destination or per gateway on the Alert rules page. The most specific override
-wins; overridden values show in pink with a reset control.
+destination or per lead-time band on the Alert rules page. The most specific
+override wins; overridden values show in pink with a reset control.
+
+Pricing, Autopilot and Alert rules share one hierarchy and one set of scope
+ids, so a threshold set on one page resolves against the same row on another.
 
 An alert only rolls up to a row once it affects a material share of the
 departures beneath it, and that share is set per alert type — a thin margin on

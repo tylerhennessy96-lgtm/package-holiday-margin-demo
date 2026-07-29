@@ -165,10 +165,16 @@
     table.ap-table tbody tr.row-dest:hover td { background: #f3f5f9; }
     table.ap-table tbody tr.row-region td.col-name { padding-left: 12px; }
     table.ap-table tbody tr.row-dest   td.col-name { padding-left: 32px; box-shadow: inset 2px 0 0 var(--border); }
-    table.ap-table tbody tr.row-gw     td.col-name { padding-left: 54px; box-shadow: inset 2px 0 0 var(--border); }
+    table.ap-table tbody tr.row-lead   td.col-name { padding-left: 54px; box-shadow: inset 2px 0 0 var(--border); }
     .lvl-region-name { font-weight: 600; color: var(--text-primary); }
     .lvl-dest-name   { font-weight: 500; color: var(--text-primary); }
-    .lvl-gw-name     { font-weight: 400; color: var(--text-primary); }
+    .lvl-lead-name   { font-weight: 400; color: var(--text-primary); }
+    .leaf-bullet     { margin-right: 7px; color: var(--text-muted); }
+    .lead-chip {
+      display: inline-block; margin-left: 8px; padding: 1px 6px; border-radius: 999px;
+      font-size: 10px; font-weight: 600; font-variant-numeric: tabular-nums;
+      background: #eef2f7; color: #475569;
+    }
     table.ap-table tbody tr.row-park td { background: #f6f8fc; font-weight: 600; }
     table.ap-table tbody tr.row-park:hover td { background: #eef2f8; }
     table.ap-table tbody tr.row-park td.col-name { padding-left: 12px; }
@@ -307,7 +313,7 @@
       <table class="ap-table">
         <thead>
           <tr>
-            <th>Region / Destination / Gateway</th>
+            <th>Region / Destination / Lead time</th>
             <th>Scope</th>
             <th>Low pace below<span class="sub">booking pace vs historic</span></th>
             <th>Margin floor<span class="sub">flag margin under</span></th>
@@ -319,7 +325,7 @@
       </table>
       <div class="ap-note">
         These thresholds decide when an alert fires on the Pricing table. Destinations inherit their
-        region's thresholds and gateways inherit their destination's — edit a value to override it for
+        region's thresholds and lead-time bands inherit their destination's — edit a value to override it for
         that row and everything under it (shown in pink), and use ↺ to go back to inheriting. Rows with
         no override follow the global defaults set in Settings. Saved in this browser.
       </div>
@@ -425,25 +431,31 @@
 <script src="app.js"></script>
 <script>
 (function () {
-  const GWL = { lgw:'London Gatwick', man:'Manchester', bhx:'Birmingham', gla:'Glasgow',
-                brs:'Bristol', stn:'London Stansted', ncl:'Newcastle', edi:'Edinburgh' };
+  // Same bands as the Pricing table, so a row here maps to a row there.
+  const LEAD_BANDS = [
+    { id:'w1', label:'Within 7 days',      short:'≤ 7d'    },
+    { id:'w2', label:'8–30 days',          short:'8–30d'   },
+    { id:'w3', label:'31–90 days',         short:'31–90d'  },
+    { id:'w4', label:'91–180 days',        short:'91–180d' },
+    { id:'w5', label:'More than 180 days', short:'180d +'  },
+  ];
   const REGIONS = [
     { id:'wmed', name:'Western Mediterranean', dests:[
-      { id:'faro', name:'Faro — Algarve', country:'PT', gateways:['lgw','man','bhx','brs'] },
-      { id:'palma', name:'Palma — Mallorca', country:'ES', gateways:['lgw','man','bhx','ncl'] },
-      { id:'alicante', name:'Alicante — Costa Blanca', country:'ES', gateways:['lgw','man','stn'] } ] },
+      { id:'faro', name:'Faro — Algarve', country:'PT' },
+      { id:'palma', name:'Palma — Mallorca', country:'ES' },
+      { id:'alicante', name:'Alicante — Costa Blanca', country:'ES' } ] },
     { id:'emed', name:'Eastern Mediterranean', dests:[
-      { id:'heraklion', name:'Heraklion — Crete', country:'GR', gateways:['lgw','man','bhx','gla'] },
-      { id:'antalya', name:'Antalya — Turkey', country:'TR', gateways:['lgw','man','bhx','edi'] },
-      { id:'paphos', name:'Paphos — Cyprus', country:'CY', gateways:['lgw','man','brs'] } ] },
+      { id:'heraklion', name:'Heraklion — Crete', country:'GR' },
+      { id:'antalya', name:'Antalya — Turkey', country:'TR' },
+      { id:'paphos', name:'Paphos — Cyprus', country:'CY' } ] },
     { id:'atlantic', name:'Canaries & Atlantic', dests:[
-      { id:'tenerife', name:'Tenerife South', country:'ES', gateways:['lgw','man','bhx','gla'] },
-      { id:'lanzarote', name:'Lanzarote — Arrecife', country:'ES', gateways:['lgw','man','stn'] },
-      { id:'funchal', name:'Funchal — Madeira', country:'PT', gateways:['lgw','man','brs'] } ] },
+      { id:'tenerife', name:'Tenerife South', country:'ES' },
+      { id:'lanzarote', name:'Lanzarote — Arrecife', country:'ES' },
+      { id:'funchal', name:'Funchal — Madeira', country:'PT' } ] },
     { id:'caribbean', name:'Caribbean & Mexico', dests:[
-      { id:'cancun', name:'Cancún — Mexico', country:'MX', gateways:['lgw','man','bhx','gla'] },
-      { id:'puntacana', name:'Punta Cana — Dominican Rep.', country:'DO', gateways:['lgw','man','bhx','ncl'] },
-      { id:'montego', name:'Montego Bay — Jamaica', country:'JM', gateways:['lgw','man','bhx','stn'] } ] },
+      { id:'cancun', name:'Cancún — Mexico', country:'MX' },
+      { id:'puntacana', name:'Punta Cana — Dominican Rep.', country:'DO' },
+      { id:'montego', name:'Montego Bay — Jamaica', country:'JM' } ] },
   ];
 
   // Global defaults come from Settings; per-row overrides live here.
@@ -465,7 +477,20 @@
   function loadOverrides(){
     try{ return JSON.parse(localStorage.getItem(RULES_KEY) || '{}'); }catch(e){ return {}; }
   }
-  let overrides = loadOverrides();
+  let overrides = pruneStaleScopes(loadOverrides());
+
+  // The third level used to be a gateway. Any override still keyed by one can
+  // never resolve, so drop it rather than let it inflate the override count.
+  function pruneStaleScopes(o){
+    const valid = new Set(LEAD_BANDS.map(b=>b.id));
+    let changed = false;
+    Object.keys(o).forEach(k=>{
+      const parts = k.split('|');
+      if (parts.length === 3 && !valid.has(parts[2])) { delete o[k]; changed = true; }
+    });
+    if (changed) localStorage.setItem(RULES_KEY, JSON.stringify(o));
+    return o;
+  }
   function save(){ localStorage.setItem(RULES_KEY, JSON.stringify(overrides)); }
   function ovr(scope){ return overrides[scope] || {}; }
 
@@ -475,14 +500,14 @@
     { key:'conversion',  min:0,   max:15,  step:0.1, unit:'%' },
   ];
 
-  function effective(regionId, destId, gwId){
+  function effective(regionId, destId, bandId){
     const r=ovr(regionId);
     const d=destId?ovr(regionId+'|'+destId):{};
-    const g=(destId&&gwId)?ovr(regionId+'|'+destId+'|'+gwId):{};
+    const b=(destId&&bandId)?ovr(regionId+'|'+destId+'|'+bandId):{};
     const out={};
     FIELDS.forEach(f=>{
-      const v = g[f.key]!=null?g[f.key] : (d[f.key]!=null?d[f.key] : (r[f.key]!=null?r[f.key] : DEFAULTS[f.key]));
-      const own = gwId ? g[f.key]!=null : (destId ? d[f.key]!=null : r[f.key]!=null);
+      const v = b[f.key]!=null?b[f.key] : (d[f.key]!=null?d[f.key] : (r[f.key]!=null?r[f.key] : DEFAULTS[f.key]));
+      const own = bandId ? b[f.key]!=null : (destId ? d[f.key]!=null : r[f.key]!=null);
       out[f.key]={ value:v, own };
     });
     return out;
@@ -534,19 +559,21 @@
             '<td class="col-name"><span class="accordion-name lvl-2 '+(dOpen?'expanded':'')+'" role="button" tabindex="0" data-toggle="dest" aria-expanded="'+dOpen+'">'+
               '<span class="accordion-chev">'+chev+'</span><span class="lvl-dest-name">'+esc(dest.name)+'</span>'+
               '<span class="park-country">'+dest.country+'</span></span></td>'+
-            '<td><span class="row-meta">'+dest.gateways.length+' gateways</span></td>'+
+            '<td><span class="row-meta">'+LEAD_BANDS.length+' lead-time bands</span></td>'+
             rowCells(dScope, effective(region.id,dest.id,null))+
             '<td>'+resetCell(dScope)+'</td>'+
           '</tr>');
         if(!dOpen) return;
-        dest.gateways.forEach(g=>{
-          const gScope=dScope+'|'+g;
+        LEAD_BANDS.forEach(b=>{
+          const bScope=dScope+'|'+b.id;
           out.push(
-            '<tr class="row-gw">'+
-              '<td class="col-name"><span class="leaf-bullet" aria-hidden="true">•</span><span class="lvl-gw-name">'+esc(GWL[g])+'</span></td>'+
-              '<td><span class="row-meta">gateway</span></td>'+
-              rowCells(gScope, effective(region.id,dest.id,g))+
-              '<td>'+resetCell(gScope)+'</td>'+
+            '<tr class="row-lead">'+
+              '<td class="col-name"><span class="leaf-bullet" aria-hidden="true">•</span>'+
+                '<span class="lvl-lead-name">'+esc(b.label)+'</span>'+
+                '<span class="lead-chip">'+esc(b.short)+'</span></td>'+
+              '<td><span class="row-meta">lead time</span></td>'+
+              rowCells(bScope, effective(region.id,dest.id,b.id))+
+              '<td>'+resetCell(bScope)+'</td>'+
             '</tr>');
         });
       });
@@ -559,7 +586,7 @@
       '<div class="ap-kpi"><div class="label">Global defaults</div><div class="value" style="font-size:14px;">'+
         'pace ' + DEFAULTS.lowPace + '% · margin ' + DEFAULTS.marginFloor + '% · conv ' + DEFAULTS.conversion + '%</div></div>'+
       '<div class="ap-kpi k-review"><div class="label">Rows with overrides</div><div class="value">'+overrideCount+'</div></div>'+
-      '<div class="ap-kpi"><div class="label">Scopes</div><div class="value" style="font-size:14px;">Region · Destination · Gateway</div></div>';
+      '<div class="ap-kpi"><div class="label">Scopes</div><div class="value" style="font-size:14px;">Region · Destination · Lead time</div></div>';
   }
 
   const bodyEl=document.getElementById('apBody');
