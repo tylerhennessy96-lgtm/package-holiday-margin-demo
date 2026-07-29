@@ -449,7 +449,7 @@
   // Global defaults come from Settings; per-row overrides live here.
   const GLOBAL_KEY = 'dynamica.smartrates.alerts';
   const RULES_KEY  = 'dynamica.smartrates.alertRules';
-  const FALLBACK = { lowPace: -15, marginFloor: 22, conversion: 2.6 };
+  const FALLBACK = { lowPace: -25, marginFloor: 7, conversion: 2.2 };
   function globalDefaults(){
     const out = Object.assign({}, FALLBACK);
     try{

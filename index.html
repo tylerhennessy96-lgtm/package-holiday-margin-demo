@@ -556,6 +556,11 @@
       font-style: italic;
     }
 
+    table.srt th.col-name, table.srt td.col-name {
+      width: 190px; max-width: 190px;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+
     /* ── Three-level accordion: Region / Destination / Gateway ──
        Reuses the reference's level styling: region rows read as the old park
        rows, destination rows as the old category rows, gateways as leaves. */
@@ -568,8 +573,8 @@
     table.srt tbody tr.row-dest:hover   td:not(.cell-pos):not(.cell-neg) { background: #f3f5f9; }
 
     table.srt tbody tr.row-region td.col-name { padding-left: 12px; }
-    table.srt tbody tr.row-dest   td.col-name { padding-left: 30px; box-shadow: inset 2px 0 0 var(--border); }
-    table.srt tbody tr.row-leaf   td.col-name { padding-left: 52px; box-shadow: inset 2px 0 0 var(--border); }
+    table.srt tbody tr.row-dest   td.col-name { padding-left: 22px; box-shadow: inset 2px 0 0 var(--border); }
+    table.srt tbody tr.row-leaf   td.col-name { padding-left: 34px; box-shadow: inset 2px 0 0 var(--border); }
 
     .lvl-region-name { font-weight: 600; color: var(--text-primary); }
     .lvl-dest-name   { font-weight: 500; color: var(--text-primary); }
@@ -1909,6 +1914,9 @@
       background: var(--surface);
       padding: 14px 16px;
     }
+    .lm-panel-foot {
+      margin-top: 6px; font-size: 10.5px; color: var(--muted); letter-spacing: .01em;
+    }
     .lm-panel-title {
       font-size: 12px;
       font-weight: 600;
@@ -2451,6 +2459,10 @@
       <h1 class="pricing-heading">Pricing</h1>
 
       <div class="filter-group" id="filterGroup">
+        <button class="filter-pill ms-pill" data-filter="rm" type="button" aria-haspopup="listbox" aria-expanded="false">
+          <span class="ms-trigger-text">All Revenue Managers</span>
+          <span class="ms-trigger-count" hidden></span>
+        </button>
         <button class="filter-pill ms-pill" data-filter="region" type="button" aria-haspopup="listbox" aria-expanded="false">
           <span class="ms-trigger-text">All Regions</span>
           <span class="ms-trigger-count" hidden></span>
@@ -2461,10 +2473,6 @@
         </button>
         <button class="filter-pill ms-pill" data-filter="park" type="button" aria-haspopup="listbox" aria-expanded="false">
           <span class="ms-trigger-text">All Destinations</span>
-          <span class="ms-trigger-count" hidden></span>
-        </button>
-        <button class="filter-pill ms-pill" data-filter="ticket" type="button" aria-haspopup="listbox" aria-expanded="false">
-          <span class="ms-trigger-text">All Gateways</span>
           <span class="ms-trigger-count" hidden></span>
         </button>
         <button class="filter-pill ms-pill" data-filter="lead" type="button" aria-haspopup="listbox" aria-expanded="false">
@@ -2536,7 +2544,7 @@
           </tr>
           <tr class="cols">
             <th class="col-select"><input type="checkbox" class="row-select" id="selectAllRows" aria-label="Select all visible rows" title="Select all visible gateway rows"></th>
-            <th class="sortable" data-sort-key="name" data-sort-type="text"><span class="th-inner"><span class="th-text">Region / Destination<span class="sub">Gateway</span></span><span class="sort-ind" aria-hidden="true"><span class="sa-up">▲</span><span class="sa-down">▼</span></span></span></th>
+            <th class="col-name sortable" data-sort-key="name" data-sort-type="text"><span class="th-inner"><span class="th-text">Region / Dest.<span class="sub">Lead time</span></span><span class="sort-ind" aria-hidden="true"><span class="sa-up">▲</span><span class="sa-down">▼</span></span></span></th>
             <th class="sortable" data-sort-key="lead" data-sort-type="text"><span class="th-inner"><span class="th-text">Lead<span class="sub">time</span></span><span class="sort-ind" aria-hidden="true"><span class="sa-up">▲</span><span class="sa-down">▼</span></span></span></th>
             <th class="sortable" data-sort-key="alertCount" data-sort-type="num"><span class="th-inner"><span class="th-text">Alerts</span><span class="sort-ind" aria-hidden="true"><span class="sa-up">▲</span><span class="sa-down">▼</span></span></span></th>
 
@@ -2879,6 +2887,18 @@
     edi: { cost: 1.05, price: 0.98 },
   };
 
+  // Revenue managers own a book of destinations. The RM filter lets someone
+  // see only their own domain of responsibility.
+  const RMS = [
+    { id: 'rm1', name: 'A. Whitfield' },
+    { id: 'rm2', name: 'S. Okonkwo' },
+    { id: 'rm3', name: 'M. Delgado' },
+  ];
+  const RM_BY_DEST = {
+    faro:'rm1', palma:'rm1', alicante:'rm1', tenerife:'rm1',
+    heraklion:'rm2', antalya:'rm2', paphos:'rm2', lanzarote:'rm2',
+    funchal:'rm3', cancun:'rm3', puntacana:'rm3', montego:'rm3',
+  };
   const REGIONS = [
     {
       id: 'wmed', name: 'Western Mediterranean',
@@ -2920,6 +2940,7 @@
   REGIONS.forEach(region => {
     region.dests.forEach(d => {
       d.region = region;
+      d.rm = (RMS.find(r => r.id === RM_BY_DEST[d.id]) || RMS[0]).name;
       d.tickets = d.gateways.map(g => Object.assign({}, GW[g]));
       PARKS.push(d);
     });
@@ -3306,6 +3327,18 @@
   // Every parent row (destination or region) is a true roll-up of its leaves:
   // volumes sum, rates are revenue- or session-weighted, and margin is
   // recomputed from summed revenue and summed cost so it always reconciles.
+  // An accepted product's live margin becomes the recommended one — accepting
+  // is a decision that takes effect, not just a tick.
+  function acceptedMarginFor(leaf) {
+    const key = productKey(leaf.park, leadBandFor(leaf.date.daysOut).id);
+    const st = rowStates[key];
+    return (st && st.state === 'accepted') ? recMarginOf(leaf) : null;
+  }
+  function livePriceOf(leaf) {
+    const m = acceptedMarginFor(leaf);
+    return m == null ? leaf.current : marginPctToPrice(leaf.cost, m);
+  }
+
   function aggregate(rows) {
     let sold = 0, fcst = 0, revenue = 0, sessions = 0, sessionsRate = 0;
     let costRev = 0, recRev = 0;
@@ -3317,7 +3350,7 @@
       fcst     += row.fcst;
       sessions += row.sessions;
       sessionsRate += row.sessionsRate;
-      revenue  += row.revenue;
+      revenue  += row.sold * livePriceOf(row);
       costRev  += row.sold * row.cost;
       recRev   += row.sold * recPriceOf(row);
       rosNum   += row.ros * row.revenue;  rosDen += row.revenue;
@@ -3350,18 +3383,20 @@
   // aggregated across the departures in that band. There is no date column —
   // the Calendar view carries the date dimension. Decisions (accept, reject,
   // adjust) are taken on the product and apply across its departures.
-  function productKey(dest, gw, bandId) {
-    return dest.name + ' — ' + gw.label + ' — ' + leadBand(bandId).short;
+  // A product is a destination x lead-time band. Gateway is no longer an
+  // accordion level — a destination's gateways are aggregated into the band.
+  function productKey(dest, bandId) {
+    return dest.name + ' — ' + leadBand(bandId).short;
   }
 
   // Leaves for one product, across the dates currently in range. Cached: the
   // 365-day horizon means this is called a great many times per render.
   const _plCache = new Map();
   let _plStamp = '';
-  function productLeaves(dest, gw, bandId) {
+  function productLeaves(dest, bandId) {
     const stamp = (filters.dateRange.start || '') + '|' + (filters.dateRange.end || '');
     if (stamp !== _plStamp) { _plCache.clear(); _plStamp = stamp; }
-    const ck = dest.id + '|' + gw.id + '|' + bandId;
+    const ck = dest.id + '|' + bandId;
     let out = _plCache.get(ck);
     if (out) return out;
     const band = leadBand(bandId);
@@ -3369,14 +3404,14 @@
     DATES.forEach(d => {
       if (!dateInDateRange(d)) return;
       if (d.daysOut < band.min || d.daysOut > band.max) return;
-      out.push(ALL_LEAVES[stateKey(dest, gw, d)]);
+      dest.tickets.forEach(gw => out.push(ALL_LEAVES[stateKey(dest, gw, d)]));
     });
     _plCache.set(ck, out);
     return out;
   }
   function productLeavesFor(dest) {
     const out = [];
-    dest.tickets.forEach(gw => LEAD_BANDS.forEach(b => out.push(...productLeaves(dest, gw, b.id))));
+    LEAD_BANDS.forEach(b => out.push(...productLeaves(dest, b.id)));
     return out;
   }
   function productLeavesForRegion(region) {
@@ -3393,8 +3428,8 @@
     if (!v) { v = aggregate(leaves); _aggCache.set(ck, v); }
     return v;
   }
-  function productAgg(dest, gw, bandId) {
-    return aggCached('p|' + dest.id + '|' + gw.id + '|' + bandId, productLeaves(dest, gw, bandId));
+  function productAgg(dest, bandId) {
+    return aggCached('p|' + dest.id + '|' + bandId, productLeaves(dest, bandId));
   }
 
   // ── Manual adjustments ─────────────────────────────────────
@@ -3410,35 +3445,35 @@
       sup: (st && typeof st.supPpt === 'number') ? st.supPpt : 0,
     };
   }
-  function pptToGbp(dest, gw, band, ppt) {
+  function pptToGbp(dest, band, ppt) {
     if (!ppt) return 0;
-    const agg = productAgg(dest, gw, band);
+    const agg = productAgg(dest, band);
     const base = agg.recMarginPct;
     return Math.round(marginPctToPrice(agg.cost, base + ppt) - marginPctToPrice(agg.cost, base));
   }
-  function gbpToPpt(dest, gw, band, gbp) {
+  function gbpToPpt(dest, band, gbp) {
     if (!gbp) return 0;
-    const agg = productAgg(dest, gw, band);
+    const agg = productAgg(dest, band);
     const base = agg.recMarginPct;
     const newPrice = Math.max(agg.cost + 5, marginPctToPrice(agg.cost, base) + gbp);
     return Math.round((((newPrice - agg.cost) / newPrice) * 100 - base) * 10) / 10;
   }
 
   // Final recommended margin: engine baseline + committed supplement + pending adjustment.
-  function productRecMargin(dest, gw, band) {
-    const agg = productAgg(dest, gw, band);
-    const a = adjOf(productKey(dest, gw, band));
+  function productRecMargin(dest, band) {
+    const agg = productAgg(dest, band);
+    const a = adjOf(productKey(dest, band));
     const total = agg.recMarginPct + a.sup + a.ppt;
     return Math.max(2, Math.min(72, Math.round(total * 10) / 10));
   }
-  function productMarginPct(dest, gw, band) { return productAgg(dest, gw, band).marginPct; }
+  function productMarginPct(dest, band) { return productAgg(dest, band).marginPct; }
 
   // Every product under a scope, as {dest, gw, band} triples.
   function productsUnder(scope, kind) {
     const out = [];
-    const add = d => d.tickets.forEach(gw => LEAD_BANDS.forEach(b => {
-      if (productPasses(d, gw, b.id)) out.push({ dest: d, gw, band: b.id });
-    }));
+    const add = d => LEAD_BANDS.forEach(b => {
+      if (productPasses(d, b.id)) out.push({ dest: d, band: b.id });
+    });
     if (kind === 'region') scope.dests.filter(parkMatchesFilter).forEach(add);
     else if (kind === 'dest') add(scope);
     else out.push(scope);
@@ -3454,39 +3489,38 @@
       const d = PARKS.find(p => p.id === rest);
       return d ? productsUnder(d, 'dest') : [];
     }
-    const [dId, gId, bId] = rest.split('|');
+    const [dId, bId] = rest.split('|');
     const d = PARKS.find(p => p.id === dId);
-    const gw = d && d.tickets.find(t => t.id === gId);
-    return (d && gw) ? [{ dest: d, gw, band: bId }] : [];
+    return d ? [{ dest: d, band: bId }] : [];
   }
   function productKeysIn(dests) {
     const out = [];
-    dests.filter(parkMatchesFilter).forEach(d => d.tickets.forEach(gw => LEAD_BANDS.forEach(b => {
-      if (productPasses(d, gw, b.id)) out.push(productKey(d, gw, b.id));
-    })));
+    dests.filter(parkMatchesFilter).forEach(d => LEAD_BANDS.forEach(b => {
+      if (productPasses(d, b.id)) out.push(productKey(d, b.id));
+    }));
     return out;
   }
   function productFromKey(key) {
-    for (const d of PARKS) for (const gw of d.tickets) for (const b of LEAD_BANDS)
-      if (productKey(d, gw, b.id) === key) return { dest: d, gw, band: b.id };
+    for (const d of PARKS) for (const b of LEAD_BANDS)
+      if (productKey(d, b.id) === key) return { dest: d, band: b.id };
     return null;
   }
   // Average of a per-product value across a scope — what a parent cell shows.
   function scopeAvg(products, fn) {
     if (!products.length) return 0;
     let sum = 0;
-    products.forEach(p => { sum += fn(p.dest, p.gw, p.band); });
+    products.forEach(p => { sum += fn(p.dest, p.band); });
     return Math.round((sum / products.length) * 10) / 10;
   }
   // Write an adjustment down onto every product in scope.
   function applyAdjustment(products, field, value) {
-    products.forEach(({ dest, gw, band }) => {
-      const key = productKey(dest, gw, band);
+    products.forEach(({ dest, band }) => {
+      const key = productKey(dest, band);
       const st = rowStates[key] || (rowStates[key] = {});
       if (field === 'ppt') {
         if (!value) delete st.adjPpt; else st.adjPpt = value;
       } else if (field === 'gbp') {
-        const ppt = gbpToPpt(dest, gw, band, value);
+        const ppt = gbpToPpt(dest, band, value);
         if (!ppt) delete st.adjPpt; else st.adjPpt = ppt;
       }
       if (st.adjPpt) st.state = st.state === 'rejected' ? st.state : 'overridden';
@@ -3550,7 +3584,7 @@
 
   // Recommended margin for a leaf, honouring any manual override.
   function recMarginOf(leaf) {
-    const st = rowStates[productKey(leaf.park, leaf.ticket, leadBandFor(leaf.date.daysOut).id)];
+    const st = rowStates[productKey(leaf.park, leadBandFor(leaf.date.daysOut).id)];
     return (st && typeof st.overrideValue === 'number') ? st.overrideValue : leafTarget(leaf);
   }
   function recPriceOf(leaf) { return marginPctToPrice(leaf.cost, recMarginOf(leaf)); }
@@ -3585,6 +3619,32 @@
   }
 
   // Union of this row's own alerts and a de-duplicated descendant rollup.
+  // Share of a row's departures that must fire an alert before it rolls up.
+  const ROLLUP_SHARE = {
+    marginFloor: 0.25, outOfLine: 0.10, lowPace: 0.05,
+    highDemand:  0.06, lowDemand: 0.06, conversion: 0.06,
+  };
+  const ROLLUP_MIN = 3;
+
+  // Parent rows summarise the rows beneath them, not the raw departures: a
+  // destination is flagged when one of its lead-time bands is flagged, and a
+  // region when one of its destinations is. Applying the departure-share test
+  // again at every level washed the signal out entirely.
+  function rollupOfRows(childAlertLists, unit) {
+    const count = {};
+    childAlertLists.forEach(list => {
+      const seen = new Set();
+      list.forEach(a => { if (!seen.has(a.type)) { seen.add(a.type); count[a.type] = (count[a.type] || 0) + 1; } });
+    });
+    const out = [];
+    ALERT_ORDER.forEach(t => {
+      if (!count[t]) return;
+      out.push(makeAlert(t, ALERT_META[t].label + ': ' + count[t] + ' of ' +
+        childAlertLists.length + ' ' + unit + (childAlertLists.length === 1 ? '' : 's'), true));
+    });
+    return out;
+  }
+
   function unionAlertsWithRollup(directAlerts, leafRows) {
     const byType = new Map();
     directAlerts.forEach(a => byType.set(a.type, a));
@@ -3593,11 +3653,20 @@
       if (!l.alerts) return;
       l.alerts.forEach(a => { descendantCount[a.type] = (descendantCount[a.type] || 0) + 1; });
     });
+    // A row aggregates up to a hundred departure dates, so a plain union means
+    // every row carries every alert. An alert only rolls up once it affects a
+    // material share of the departures underneath — otherwise it is noise.
+    // The share is per type because the types are not equally rare: a thin
+    // margin is common on individual departures, an out-of-line move is not.
     Object.keys(descendantCount).forEach(type => {
       if (byType.has(type)) return;
+      const n = descendantCount[type];
+      const floor = Math.max(ROLLUP_MIN, Math.ceil(leafRows.length * (ROLLUP_SHARE[type] || 0.1)));
+      if (n < floor) return;
+      const pct = Math.round((n / leafRows.length) * 100);
       byType.set(type, makeAlert(type,
-        ALERT_META[type].label + ': ' + descendantCount[type] +
-        ' descendant' + (descendantCount[type] === 1 ? '' : 's'), true));
+        ALERT_META[type].label + ': ' + n + ' of ' + leafRows.length +
+        ' departures (' + pct + '%)', true));
     });
     const out = [];
     ALERT_ORDER.forEach(t => { if (byType.has(t)) out.push(byType.get(t)); });
@@ -3662,11 +3731,11 @@
   //  (Alert rules page: Region -> Destination -> Gateway, with inheritance).
   // ─────────────────────────────────────────────────────────────
   const ALERT_DEFAULTS = {
-    lowPace:     { enabled: true, threshold: -15 },
-    marginFloor: { enabled: true, threshold:  22 },
-    highDemand:  { enabled: true, threshold:  80 },
-    lowDemand:   { enabled: true, threshold:  25 },
-    conversion:  { enabled: true, threshold: 2.6 },
+    lowPace:     { enabled: true, threshold: -25 },
+    marginFloor: { enabled: true, threshold:   7 },
+    highDemand:  { enabled: true, threshold:  90 },
+    lowDemand:   { enabled: true, threshold:  14 },
+    conversion:  { enabled: true, threshold: 2.2 },
     outOfLine:   { enabled: true },
   };
   function loadAlertCfg() {
@@ -3813,6 +3882,15 @@
 
   // ── Formatting helpers ──
   function fmtInt(n) { return n.toLocaleString('en-GB'); }
+  // Compact counts — six-figure session numbers are noise at full precision.
+  function fmtCompact(n) {
+    n = Math.round(n);
+    if (Math.abs(n) >= 1000000) return (n / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
+    // Below 10k the exact figure still reads cleanly, and rounding 2,847 to "3k"
+    // would hide the gap between bookings and target.
+    if (Math.abs(n) >= 10000) return Math.round(n / 1000) + 'k';
+    return n.toLocaleString('en-GB');
+  }
   function fmtGbp(n) { return '£' + Math.round(n).toLocaleString('en-GB'); }
   function fmtGbpK(n) {
     if (n >= 1000000) return '£' + (n / 1000000).toFixed(1) + 'M';
@@ -3850,15 +3928,15 @@
     // Anything else reads "mixed" — averaging a sparse supplement across a
     // region would invent a number nobody set.
     const uniform = fn => {
-      const vals = products.map(p => fn(p.dest, p.gw, p.band));
+      const vals = products.map(p => fn(p.dest, p.band));
       if (!vals.length) return { v: 0, mixed: false };
       const first = vals[0];
       return vals.every(x => Math.abs(x - first) < 0.05)
         ? { v: Math.round(first * 10) / 10, mixed: false }
         : { v: 0, mixed: true };
     };
-    const p1 = uniform((d, g, b) => adjOf(productKey(d, g, b)).ppt);
-    const p2 = uniform((d, g, b) => pptToGbp(d, g, b, adjOf(productKey(d, g, b)).ppt));
+    const p1 = uniform((d, b) => adjOf(productKey(d, b)).ppt);
+    const p2 = uniform((d, b) => pptToGbp(d, b, adjOf(productKey(d, b)).ppt));
     const pct = p1.v, gbp = p2.v;
     const ph = st => st.mixed ? 'mixed' : '—';
     const cls = v => 'adj-input' + (v ? ' is-set' : '');
@@ -3886,10 +3964,10 @@
   function supCell(scopeId, products) {
     if (!products.length) return '<td class="num sup-cell-td"></td>';
     let ppt = 0, gbp = 0;
-    products.forEach(({ dest, gw, band }) => {
-      const v = adjOf(productKey(dest, gw, band)).sup;
+    products.forEach(({ dest, band }) => {
+      const v = adjOf(productKey(dest, band)).sup;
       ppt += v;
-      gbp += pptToGbp(dest, gw, band, v);
+      gbp += pptToGbp(dest, band, v);
     });
     ppt = Math.round((ppt / products.length) * 10) / 10;
     gbp = Math.round(gbp / products.length);
@@ -3905,7 +3983,7 @@
   // Action cell — works at product, destination and region level. A decision
   // at a parent applies to every product beneath it.
   function scopeActionCell(scopeId, products) {
-    const keys = products.map(p => productKey(p.dest, p.gw, p.band));
+    const keys = products.map(p => productKey(p.dest, p.band));
     const states = keys.map(k => (rowStates[k] || {}).state);
     const all = v => keys.length > 0 && states.every(x => x === v);
     const some = v => states.some(x => x === v);
@@ -3945,7 +4023,6 @@
     return (
       '<span class="demand-cell" title="' + esc(tooltip) + '">' +
         '<span class="dl-chip dl-' + dl.level + '">' + dl.code + '</span>' +
-        '<span class="dl-label">' + esc(dl.label) + '</span>' +
       '</span>'
     );
   }
@@ -4030,13 +4107,13 @@
   // Sort value for any table scope: region, destination, or product.
   function scopeSortValue(scope, key, kind) {
     if (key === 'name') {
-      if (kind === 'product') return scope.gw.label.toLowerCase() + '|' + scope.band;
+      if (kind === 'product') return scope.band;
       return scope.name.toLowerCase();
     }
     if (key === 'lead') return kind === 'product' ? scope.band : '';
     const leaves = kind === 'region'  ? productLeavesForRegion(scope)
                  : kind === 'dest'    ? productLeavesFor(scope)
-                 : productLeaves(scope.dest, scope.gw, scope.band);
+                 : productLeaves(scope.dest, scope.band);
     const agg = aggregate(leaves);
     if (key === 'alertCount') {
       const anchorId = kind === 'region' ? scope.dests[0].id : (kind === 'dest' ? scope.id : scope.dest.id);
@@ -4047,7 +4124,7 @@
     if (key === 'recMargin' || key === 'deltaPpt' || key === 'recAction') {
       let recM = agg.recMarginPct;
       if (kind === 'product') {
-        recM = productRecMargin(scope.dest, scope.gw, scope.band);
+        recM = productRecMargin(scope.dest, scope.band);
       }
       const d = recM - agg.marginPct;
       if (key === 'recMargin') return recM;
@@ -4122,12 +4199,9 @@
         out.push(destRowHtml(dest, aggregate(destLeaves), destOpen, destLeaves));
         if (!destOpen) return;
 
-        let prods = [];
-        dest.tickets.forEach(gw => LEAD_BANDS.forEach(b => {
-          if (productPasses(dest, gw, b.id)) prods.push({ dest, gw, band: b.id });
-        }));
+        let prods = LEAD_BANDS.filter(b => productPasses(dest, b.id)).map(b => ({ dest, band: b.id }));
         if (useSort) prods = sortByKey(prods, pr => scopeSortValue(pr, sortKey, 'product'), isText);
-        prods.forEach(pr => out.push(productRowHtml(pr.dest, pr.gw, pr.band)));
+        prods.forEach(pr => out.push(productRowHtml(pr.dest, pr.band)));
       });
     });
 
@@ -4141,8 +4215,8 @@
   // Shared trailing cells for an aggregate row (destination or region).
   function aggTailCells(agg, scopeId, products) {
     let up = 0, down = 0;
-    products.forEach(({ dest, gw, band }) => {
-      const d = productRecMargin(dest, gw, band) - productMarginPct(dest, gw, band);
+    products.forEach(({ dest, band }) => {
+      const d = productRecMargin(dest, band) - productMarginPct(dest, band);
       if (d > 0.05) up++; else if (d < -0.05) down++;
     });
     const recSummary = (up || down)
@@ -4151,17 +4225,17 @@
           (down ? '<span class="ras-down">' + down + '↓</span>' : '') +
         '</span>'
       : '<span class="rec-action-summary ras-flat">—</span>';
-    const recM = scopeAvg(products, (d, g, b) => productRecMargin(d, g, b));
+    const recM = scopeAvg(products, (d, b) => productRecMargin(d, b));
     const delta = Math.round((recM - agg.marginPct) * 10) / 10;
     const dTint = tintFor(delta);
     return (
-      '<td class="num">' + fmtInt(agg.sessions) + '</td>' +
+      '<td class="num">' + fmtCompact(agg.sessions) + '</td>' +
       '<td class="num">' + conversionCell(agg.conversion) + '</td>' +
       '<td class="num ' + tintFor(agg.ros) + '">' + signed(agg.ros, '%') + '</td>' +
       '<td class="num">' + demandCell(agg.demand) + '</td>' +
 
-      '<td class="num">' + fmtInt(agg.sold) + '</td>' +
-      '<td class="num">' + fmtInt(agg.fcst) + '</td>' +
+      '<td class="num">' + fmtCompact(agg.sold) + '</td>' +
+      '<td class="num">' + fmtCompact(agg.fcst) + '</td>' +
       '<td class="num">' + agg.pctOfFcst + '%</td>' +
       '<td class="num ' + tintFor(agg.yoy) + '">' + signed(agg.yoy, '%') + '</td>' +
 
@@ -4175,7 +4249,10 @@
   }
 
   function regionRowHtml(region, agg, isExpanded, leafRows) {
-    const alerts = unionAlertsWithRollup(aggregateGroupAAlerts(agg, region.dests[0].id), leafRows);
+    const alerts = rollupOfRows(
+      region.dests.map(d => rollupOfRows(
+        LEAD_BANDS.map(b => unionAlertsWithRollup([], productLeaves(d, b.id))), 'lead-time band')),
+      'destination');
     const keys = productKeysIn(region.dests);
     const allSelected = keys.length > 0 && keys.every(k => selectedKeys.has(k));
     return (
@@ -4188,7 +4265,6 @@
               '<svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor" aria-hidden="true"><polygon points="3,2 7,5 3,8"/></svg>' +
             '</span>' +
             '<span class="lvl-region-name">' + esc(region.name) + '</span>' +
-            '<span class="row-meta">' + region.dests.length + ' destinations</span>' +
           '</span>' +
         '</td>' +
         '<td class="lead-cell"></td>' +
@@ -4199,11 +4275,13 @@
   }
 
   function destRowHtml(dest, agg, isExpanded, leafRows) {
-    const alerts = unionAlertsWithRollup(aggregateGroupAAlerts(agg, dest.id), leafRows);
+    const alerts = rollupOfRows(
+      LEAD_BANDS.map(b => unionAlertsWithRollup([], productLeaves(dest, b.id))),
+      'lead-time band');
     const keys = productKeysIn([dest]);
     const allSelected = keys.length > 0 && keys.every(k => selectedKeys.has(k));
     return (
-      '<tr class="row-dest" data-dest="' + dest.id + '">' +
+      '<tr class="row-dest" data-dest="' + dest.id + '" title="' + esc(dest.name + ' · ' + dest.countryName + ' · ' + dest.rm) + '">' +
         '<td class="col-select"><input type="checkbox" class="row-select dest-select" data-dest="' + dest.id + '"' +
           (allSelected ? ' checked' : '') + ' aria-label="Select all gateways for ' + esc(dest.name) + '"></td>' +
         '<td class="col-name">' +
@@ -4213,7 +4291,6 @@
             '</span>' +
             '<span class="lvl-dest-name">' + esc(dest.name) + '</span>' +
             '<span class="park-country" title="' + esc(dest.countryName) + '">' + dest.country + '</span>' +
-            '<span class="row-meta">' + dest.tickets.length + ' gateways</span>' +
           '</span>' +
         '</td>' +
         '<td class="lead-cell"></td>' +
@@ -4223,43 +4300,42 @@
     );
   }
 
-  // ── Product row: gateway x lead-time band ──
-  function productRowHtml(dest, gw, bandId) {
-    const key = productKey(dest, gw, bandId);
-    const scopeId = 'product:' + dest.id + '|' + gw.id + '|' + bandId;
-    const leaves = productLeaves(dest, gw, bandId);
-    const agg = productAgg(dest, gw, bandId);
+  // ── Product row: destination x lead-time band ──
+  function productRowHtml(dest, bandId) {
+    const key = productKey(dest, bandId);
+    const scopeId = 'product:' + dest.id + '|' + bandId;
+    const leaves = productLeaves(dest, bandId);
+    const agg = productAgg(dest, bandId);
     const st = rowStates[key] || {};
     const stateCls =
       st.state === 'accepted'   ? ' row-accepted' :
       st.state === 'rejected'   ? ' row-rejected' :
       st.state === 'overridden' ? ' row-overridden' : '';
-    const recM = productRecMargin(dest, gw, bandId);
+    const recM = productRecMargin(dest, bandId);
     const delta = Math.round((recM - agg.marginPct) * 10) / 10;
     const tint = delta > 0.05 ? 'cell-pos' : (delta < -0.05 ? 'cell-neg' : '');
-    const products = [{ dest, gw, band: bandId }];
+    const products = [{ dest, band: bandId }];
     const action = delta > 0.05 ? 'Increase' : delta < -0.05 ? 'Decrease' : 'No change';
     const lb = leadBand(bandId);
 
     return (
-      '<tr class="row-leaf' + stateCls + '" data-key="' + esc(key) + '" data-dest="' + dest.id + '" data-gw="' + gw.id + '" data-band="' + bandId + '">' +
+      '<tr class="row-leaf' + stateCls + '" data-key="' + esc(key) + '" data-dest="' + dest.id + '" data-band="' + bandId + '">' +
         '<td class="col-select"><input type="checkbox" class="row-select leaf-select" data-key="' + esc(key) + '"' +
           (selectedKeys.has(key) ? ' checked' : '') + ' aria-label="Select row"></td>' +
         '<td class="col-name">' +
           '<span class="leaf-bullet" aria-hidden="true">•</span>' +
-          '<span class="lvl-gw-name">' + esc(gw.label) + '</span>' +
-          '<span class="gw-code">' + gw.code + '</span>' +
+          '<span class="lvl-lead-name">' + lb.label + '</span>' +
         '</td>' +
         '<td class="lead-cell"><span class="lead-chip lead-' + bandId + '">' + lb.short + '</span></td>' +
         alertsCellHtml(unionAlertsWithRollup([], leaves)) +
 
-        '<td class="num">' + fmtInt(agg.sessions) + '</td>' +
+        '<td class="num">' + fmtCompact(agg.sessions) + '</td>' +
         '<td class="num">' + conversionCell(agg.conversion) + '</td>' +
         '<td class="num ' + tintFor(agg.ros) + '">' + signed(agg.ros, '%') + '</td>' +
         '<td class="num">' + demandCell(agg.demand) + '</td>' +
 
-        '<td class="num">' + fmtInt(agg.sold) + '</td>' +
-        '<td class="num">' + fmtInt(agg.fcst) + '</td>' +
+        '<td class="num">' + fmtCompact(agg.sold) + '</td>' +
+        '<td class="num">' + fmtCompact(agg.fcst) + '</td>' +
         '<td class="num">' + agg.pctOfFcst + '%</td>' +
         '<td class="num ' + tintFor(agg.yoy) + '">' + signed(agg.yoy, '%') + '</td>' +
 
@@ -4357,7 +4433,7 @@
     const reasonSel = e.target.closest('select.reason-select');
     if (reasonSel) {
       productsForScopeId(reasonSel.dataset.key).forEach(pr => {
-        const k = productKey(pr.dest, pr.gw, pr.band);
+        const k = productKey(pr.dest, pr.band);
         const st = rowStates[k] || (rowStates[k] = {});
         if (reasonSel.value) st.reason = reasonSel.value; else delete st.reason;
         cleanupState(k);
@@ -4369,11 +4445,11 @@
   // Resolve a product key back to its destination + gateway.
   function baseRecFor(key) {
     const pr = productFromKey(key);
-    return pr ? productAgg(pr.dest, pr.gw, pr.band).recMarginPct : 0;
+    return pr ? productAgg(pr.dest, pr.band).recMarginPct : 0;
   }
   function currentMarginFor(key) {
     const pr = productFromKey(key);
-    return pr ? productAgg(pr.dest, pr.gw, pr.band).marginPct : 0;
+    return pr ? productAgg(pr.dest, pr.band).marginPct : 0;
   }
   function cleanupState(key) {
     const st = rowStates[key];
@@ -4448,7 +4524,7 @@
       const cell = actionBtn.closest('[data-scope]');
       if (!cell) return;
       const products = productsForScopeId(cell.dataset.scope);
-      const keys = products.map(pr => productKey(pr.dest, pr.gw, pr.band));
+      const keys = products.map(pr => productKey(pr.dest, pr.band));
       if (!keys.length) return;
       const act = actionBtn.dataset.action;
       if (act === 'accept' || act === 'reject') {
@@ -4553,12 +4629,12 @@
     if (kind === 'region') { const r = REGIONS.find(x => x.id === rest); return r ? r.name : scopeId; }
     if (kind === 'dest')   { const d = PARKS.find(x => x.id === rest); return d ? d.name : scopeId; }
     const pr = productsForScopeId(scopeId)[0];
-    return pr ? pr.dest.name + ' — ' + pr.gw.label : scopeId;
+    return pr ? productKey(pr.dest, pr.band) : scopeId;
   }
   function openNoteModal(scopeId) {
     activeNoteKey = scopeId;
     const products = productsForScopeId(scopeId);
-    const firstKey = products.length ? productKey(products[0].dest, products[0].gw) : scopeId;
+    const firstKey = products.length ? productKey(products[0].dest, products[0].band) : scopeId;
     const st = rowStates[firstKey] || {};
     noteSub.textContent = scopeLabel(scopeId) + (products.length > 1 ? ' · applies to ' + products.length + ' products' : '');
     noteTextarea.value = st.note || '';
@@ -4577,7 +4653,7 @@
     const text = noteTextarea.value.trim();
     const exp  = noteExpiry.value || '';
     productsForScopeId(activeNoteKey).forEach(pr => {
-      const k = productKey(pr.dest, pr.gw, pr.band);
+      const k = productKey(pr.dest, pr.band);
       const st = rowStates[k] || (rowStates[k] = {});
       if (text) st.note = text; else delete st.note;
       if (exp)  st.noteExpiry = exp; else delete st.noteExpiry;
@@ -4632,11 +4708,10 @@
     let park = null, gw = null, region = null, band = null, leaves = [];
     if (opts.level === 'product') {
       park = PARKS.find(p => p.id === opts.destId);
-      gw   = park && park.tickets.find(t => t.id === opts.gwId);
-      if (!park || !gw) return;
+      if (!park) return;
       region = park.region;
       band = opts.bandId;
-      leaves = productLeaves(park, gw, band);
+      leaves = productLeaves(park, band);
     } else if (opts.level === 'dest') {
       park = PARKS.find(p => p.id === opts.destId);
       if (!park) return;
@@ -4647,8 +4722,21 @@
       if (!region) return;
       leaves = productLeavesForRegion(region);
     }
+    // A calendar click narrows the same modal to the period that was clicked.
+    let periodLabel = null;
+    if (opts.periodKey) {
+      const list = (opts.periodKey.length > 7) ? DAY_PERIODS : MONTH_PERIODS;
+      const per = list.find(x => x.key === opts.periodKey);
+      if (per) {
+        const isos = new Set(per.dates.map(d => d.iso));
+        leaves = leaves.filter(l => isos.has(l.date.iso));
+        periodLabel = per.dates.length === 1
+          ? per.dates[0].label + ' ' + per.dates[0].dowLabel
+          : per.label;
+      }
+    }
     if (!leaves.length) return;
-    activeModal = { level: opts.level, park, gw, region, band, leaves };
+    activeModal = { level: opts.level, park, gw, region, band, leaves, periodLabel };
     lmOverrideValue = null;
     renderModal();
     lmBackdrop.classList.add('is-open');
@@ -4725,7 +4813,14 @@
       ros: { current: leaf.ros, forecast: 0, lastYear: 0 },
     };
 
-    return { actualSeries, benchmarkSeries, hourly, hourlyBenchmark, dayLabels, cmp };
+    // The chart plots bookings, not sessions: sessions only mean something
+    // once they are converted, and bookings are what carries margin.
+    const paxSeries      = actualSeries.map(v => Math.max(1, Math.round(v * leaf.conversion / 100)));
+    const paxBenchmark   = benchmarkSeries.map(v => Math.max(1, Math.round(v * leaf.conversion / 100 * 0.96)));
+    const traffic = { sessions: leaf.sessions, conversion: leaf.conversion };
+
+    return { actualSeries, benchmarkSeries, paxSeries, paxBenchmark, traffic,
+             hourly, hourlyBenchmark, dayLabels, cmp };
   }
 
   function aggregateModalData(leaves) {
@@ -4765,9 +4860,15 @@
       rosNum += c.cmp.ros.current * w;
       rosDen += w;
     });
+    const sessTotal = leaves.reduce((s, l) => s + l.sessions, 0);
+    const soldTotal = leaves.reduce((s, l) => s + l.sold, 0);
     return {
       actualSeries:    sumAt('actualSeries', N),
       benchmarkSeries: sumAt('benchmarkSeries', N),
+      paxSeries:       sumAt('paxSeries', N),
+      paxBenchmark:    sumAt('paxBenchmark', N),
+      traffic: { sessions: sessTotal,
+                 conversion: sessTotal ? Math.round((soldTotal / sessTotal) * 10000) / 100 : 0 },
       hourly:          weightedAt('hourly', M),
       hourlyBenchmark: weightedAt('hourlyBenchmark', M),
       dayLabels:       children[0].dayLabels,
@@ -4782,6 +4883,7 @@
 
   // ── SVG charts (inline) ──
   function demandPaceSvg(actual, benchmark) {
+    // `actual` is now bookings; the tooltip reads from the same arrays.
     const W = 520, H = 200;
     const padL = 44, padR = 12, padT = 14, padB = 26;
     const innerW = W - padL - padR;
@@ -4970,26 +5072,34 @@
   }
 
   // ── Modal renderer (handles park / leaf levels) ──
+  // "30 departures" was ambiguous — say what is being counted.
+  function departuresLabel(leaves) {
+    const dates = new Set(leaves.map(l => l.date.iso));
+    const n = dates.size;
+    return n === 1 ? '1 departure date' : n + ' departure dates';
+  }
+
   function renderModal() {
     if (!activeModal) return;
-    const { level, park, gw, region, band, leaves } = activeModal;
+    const { level, park, gw, region, band, leaves, periodLabel } = activeModal;
     const m = aggregateModalData(leaves);
     const agg = aggregate(leaves);
     const nDates = DATES.filter(dateInDateRange).length;
 
     let title, subtitle, key = null;
     if (level === 'product') {
-      title = esc(park.name) + ' — ' + esc(gw.label);
-      key = productKey(park, gw, band);
-      subtitle = esc(region.name) + ' · ' + esc(park.countryName) + ' · lead time ' +
-        esc(leadBand(band).label.toLowerCase()) + ' · ' + leaves.length + ' departures';
+      title = esc(park.name) + ' · ' + esc(leadBand(band).label);
+      key = productKey(park, band);
+      subtitle = esc(region.name) + ' · ' + esc(park.countryName) + ' · ' + esc(park.rm) +
+        ' · ' + departuresLabel(leaves);
     } else if (level === 'dest') {
       title = esc(park.name);
-      subtitle = esc(region.name) + ' · ' + park.tickets.length + ' gateways · ' + nDates + ' departures · aggregate';
+      subtitle = esc(region.name) + ' · ' + esc(park.rm) + ' · ' + departuresLabel(leaves);
     } else {
       title = esc(region.name);
-      subtitle = region.dests.length + ' destinations · ' + nDates + ' departures · aggregate';
+      subtitle = region.dests.length + ' destinations · ' + departuresLabel(leaves);
     }
+    if (periodLabel) subtitle = esc(periodLabel) + ' · ' + subtitle;
 
     const st = key ? (rowStates[key] || {}) : {};
     const recM = (key && typeof st.overrideValue === 'number') ? st.overrideValue : agg.recMarginPct;
@@ -5024,9 +5134,9 @@
         '<div class="lm-panel-title">Margin recommendation</div>' + stateTag +
         '<div class="lm-rec-row"><span class="label">Current margin</span><span class="value">' + agg.marginPct.toFixed(1) + '%</span></div>' +
         (function(){
-          const sup = scopeAvg(productsForScopeId(level === 'product' ? 'product:' + park.id + '|' + gw.id
+          const sup = scopeAvg(productsForScopeId(level === 'product' ? 'product:' + park.id + '|' + band
                      : level === 'dest' ? 'dest:' + park.id : 'region:' + region.id),
-                     (d, g, b) => adjOf(productKey(d, g, b)).sup);
+                     (d, b) => adjOf(productKey(d, b)).sup);
           return sup ? '<div class="lm-rec-row"><span class="label">Supplement</span><span class="value">' + fmtGbp(sup) + ' pp</span></div>' : '';
         })() +
         '<div class="lm-rec-row"><span class="label">Recommended margin</span><span class="value">' + recM.toFixed(1) + '%</span></div>' +
@@ -5066,12 +5176,14 @@
         '<div class="lm-body">' +
           '<div class="lm-col-left">' +
             '<div class="lm-panel">' +
-              '<div class="lm-panel-title">Web sessions · last 14 days</div>' +
+              '<div class="lm-panel-title">Bookings (PAX) · last 14 days</div>' +
               '<div class="lm-legend">' +
                 '<span><span class="swatch" style="background:#e8007d"></span>This year</span>' +
                 '<span><span class="swatch" style="background:#9ca3af;border:1px dashed #9ca3af"></span>Benchmark (last year)</span>' +
               '</div>' +
-              '<div class="lm-chart-area">' + demandPaceSvg(m.actualSeries, m.benchmarkSeries) + '</div>' +
+              '<div class="lm-chart-area">' + demandPaceSvg(m.paxSeries, m.paxBenchmark) + '</div>' +
+              '<div class="lm-panel-foot">From ' + fmtCompact(m.traffic.sessions) + ' web sessions at ' +
+                m.traffic.conversion.toFixed(2) + '% conversion</div>' +
             '</div>' +
             '<div class="lm-panel">' +
               '<div class="lm-panel-title">Last 7 days · conversion rate</div>' +
@@ -5104,7 +5216,7 @@
     lmBackdrop.innerHTML = html;
     document.getElementById('lmCloseBtn').addEventListener('click', closeModal);
     const askBtn = document.getElementById('lmAskBtn');
-    if (askBtn) askBtn.addEventListener('click', () => openRowCopilot('product:' + park.id + '|' + gw.id + '|' + band));
+    if (askBtn) askBtn.addEventListener('click', () => openRowCopilot('product:' + park.id + '|' + band));
 
     if (level === 'product') {
       document.getElementById('lmAccept').addEventListener('click', () => {
@@ -5178,7 +5290,7 @@
 
       const series = [
         { name: 'Benchmark', color: '#9ca3af', value: data.benchmarkSeries[i] },
-        { name: 'Sessions',  color: '#e8007d', value: data.actualSeries[i] },
+        { name: 'Bookings',  color: '#e8007d', value: data.actualSeries[i] },
       ];
       series.forEach((s, idx) => {
         markers[idx].setAttribute('cx', snapVbX);
@@ -5282,7 +5394,7 @@
     const tr = e.target.closest('tr.row-leaf, tr.row-dest, tr.row-region');
     if (!tr) return;
     if (tr.classList.contains('row-leaf')) {
-      openModal({ level: 'product', destId: tr.dataset.dest, gwId: tr.dataset.gw, bandId: tr.dataset.band });
+      openModal({ level: 'product', destId: tr.dataset.dest, bandId: tr.dataset.band });
     } else if (tr.classList.contains('row-dest')) {
       openModal({ level: 'dest', destId: tr.dataset.dest });
     } else {
@@ -5349,7 +5461,7 @@
 
   // ── Filter state ──
   const filters = {
-    region: [], country: [], park: [], ticket: [], lead: [],
+    region: [], country: [], rm: [], park: [], lead: [],
     daytype: [], alert: [], rec: [], action: [],
     dateRange: { start: null, end: null },
   };
@@ -5359,7 +5471,7 @@
     region:   REGIONS.map(r => r.name),
     country:  uniqueSorted(PARKS.map(p => p.countryName)),
     park:     PARKS.map(p => p.name),
-    ticket:   uniqueSorted(PARKS.flatMap(p => p.tickets.map(t => t.label))),
+    rm:       RMS.map(r => r.name),
     lead:     LEAD_BANDS.map(b => b.label),
     daytype:  ['Weekday', 'Weekend', 'Holiday'],
     alert:    ['Any alert', 'No alert'].concat(ALERT_ORDER.map(t => ALERT_META[t].label)),
@@ -5367,7 +5479,7 @@
     action:   ['Pending', 'Accepted', 'Rejected', 'Overridden'],
   };
   const FILTER_LABELS = {
-    region: 'Regions', country: 'Countries', park: 'Destinations', ticket: 'Gateways', lead: 'Lead Times',
+    region: 'Regions', country: 'Countries', rm: 'Revenue Managers', park: 'Destinations', lead: 'Lead Times',
     daytype: 'Departure Types', alert: 'Alerts', rec: 'Recommendations', action: 'Actions',
   };
 
@@ -5400,6 +5512,7 @@
   function parkMatchesFilter(park) {
     if (filters.region.length  && !filters.region.includes(park.region.name)) return false;
     if (filters.country.length && !filters.country.includes(park.countryName)) return false;
+    if (filters.rm.length      && !filters.rm.includes(park.rm)) return false;
     if (filters.park.length    && !filters.park.includes(park.name)) return false;
     return true;
   }
@@ -5431,18 +5544,16 @@
   }
   function leafPasses(leaf) {
     if (!parkMatchesFilter(leaf.park)) return false;
-    if (filters.ticket.length  && !filters.ticket.includes(leaf.ticket.label)) return false;
     if (filters.daytype.length && !filters.daytype.includes(dateDayType(leaf.date))) return false;
     if (!dateInDateRange(leaf.date)) return false;
     return true;
   }
 
   // Product-level predicate: the table's row filter.
-  function productPasses(dest, gw, bandId) {
+  function productPasses(dest, bandId) {
     if (!parkMatchesFilter(dest)) return false;
-    if (filters.ticket.length && !filters.ticket.includes(gw.label)) return false;
     if (filters.lead.length && !filters.lead.includes(leadBand(bandId).label)) return false;
-    const leaves = productLeaves(dest, gw, bandId);
+    const leaves = productLeaves(dest, bandId);
     if (!leaves.length) return false;
     if (filters.daytype.length && !leaves.some(l => filters.daytype.includes(dateDayType(l.date)))) return false;
     if (filters.alert.length) {
@@ -5455,9 +5566,9 @@
       if (!ok) return false;
     }
     if (filters.rec.length || filters.action.length) {
-      const key = productKey(dest, gw, bandId);
+      const key = productKey(dest, bandId);
       const st = rowStates[key] || {};
-      const agg = productAgg(dest, gw, bandId);
+      const agg = productAgg(dest, bandId);
       const recM = agg.recMarginPct + adjOf(key).sup + adjOf(key).ppt;
       const d = recM - agg.marginPct;
       const rec = d > 0.05 ? 'Increase' : d < -0.05 ? 'Decrease' : 'No change';
@@ -5469,7 +5580,7 @@
     return true;
   }
   function anyProductPassesIn(dest) {
-    return dest.tickets.some(gw => LEAD_BANDS.some(b => productPasses(dest, gw, b.id)));
+    return LEAD_BANDS.some(b => productPasses(dest, b.id));
   }
   function anyProductPassesInRegion(region) {
     if (!regionMatchesFilter(region)) return false;
@@ -5592,7 +5703,7 @@
     const sortCls = calSort.dir === 'asc' ? ' sort-asc' : (calSort.dir === 'desc' ? ' sort-desc' : '');
     const headCells =
       '<th class="cal-corner sortable' + sortCls + '" data-sort-key="region">' +
-        '<span class="th-inner"><span class="th-text">Region / Destination / Gateway</span>' +
+        '<span class="th-inner"><span class="th-text">Region / Destination</span>' +
         '<span class="sort-ind" aria-hidden="true"><span class="sa-up">▲</span><span class="sa-down">▼</span></span></span>' +
       '</th>' +
       periods.map(p => {
@@ -5628,14 +5739,18 @@
       const deltaRound  = Math.round(agg.deltaPpt * 10) / 10;
       const rosRound    = Math.round(agg.ros * 10) / 10;
       const cls = tier(deltaRound === 0 ? (marginRound >= 25 ? 4 : marginRound >= 18 ? 0 : -4) : deltaRound * 3);
-      let alertCount = 0;
-      leaves.forEach(l => { if (l.alerts) alertCount += l.alerts.length; });
-      const alertCls = alertCount > 0 ? ' has-alert' : '';
+      // Same materiality test the table uses, so the calendar and the table
+      // never disagree about whether a cell is worth looking at.
+      const cellAlerts = unionAlertsWithRollup([], leaves);
+      const alertCls = '';   // dots fired on virtually every cell — pure noise
       const titleAttr = ' title="Margin ' + marginRound.toFixed(1) + '% · Recommended ' +
         agg.recMarginPct.toFixed(1) + '% (' + signed(deltaRound, 'ppt') + ')' +
         ' · Pace vs historic ' + fmtPct(rosRound) +
-        ' · ' + fmtInt(agg.sold) + ' bookings from ' + fmtInt(agg.sessions) + ' sessions' +
-        (alertCount > 0 ? ' · ' + alertCount + ' alert' + (alertCount === 1 ? '' : 's') + ' on descendant rows' : '') + '"';
+        ' · ' + fmtInt(agg.sold) + ' bookings from ' + fmtCompact(agg.sessions) + ' sessions (' +
+        agg.conversion.toFixed(2) + '% conversion)' +
+        ' · ' + period.dates.length + ' departure date' + (period.dates.length === 1 ? '' : 's') +
+        (cellAlerts.length ? ' · ' + cellAlerts.map(a => a.label).join(', ') : '') +
+        ' · Click to open this period" ';
       const dataAttrs = ' data-scope="' + scope.id + '"' +
         ' data-period="' + period.key + '"' +
         ' data-level="' + levelClass.replace('row-', '') + '"' +
@@ -5688,7 +5803,7 @@
               '<span><b>Big number</b> — current margin % on the package. The cell colour follows the recommended move.</span>' +
               '<span><b>ppt</b> — recommended margin change, in percentage points.</span>' +
               '<span><b>P</b> — booking pace vs the same point last year.</span>' +
-              '<span><b>Pink dot</b> (top-left) — alerts firing on descendant rows.</span>' +
+
               '<span>Hover any cell for its exact values.</span>' +
             '</span>' +
           '</span>' +
@@ -5712,30 +5827,18 @@
       if (!regionOpen) return html;
 
       region.dests.filter(parkMatchesFilter).forEach(dest => {
-        const destOpen = calExpanded.dests.has(dest.id);
         html +=
-          '<tr class="row-dest" data-dest="' + dest.id + '">' +
+          '<tr class="row-dest" data-dest="' + dest.id + '" title="' + esc(dest.name + ' · ' + dest.countryName + ' · ' + dest.rm) + '">' +
             '<th class="cal-route">' +
-              '<span class="accordion-name lvl-2 ' + (destOpen ? 'expanded' : '') + '" role="button" tabindex="0" data-toggle="cal-dest" aria-expanded="' + destOpen + '">' +
-                '<span class="accordion-chev">' + chevronSvg + '</span>' +
+              '<span class="accordion-name lvl-2">' +
+                '<span class="leaf-bullet" aria-hidden="true">•</span>' +
                 '<span class="lvl-dest-name">' + esc(dest.name) + '</span>' +
                 '<span class="cal-park-country">' + esc(dest.country) + '</span>' +
               '</span>' +
-              '<span class="cal-park-meta">' + dest.tickets.length + ' gateways</span>' +
+              '<span class="cal-park-meta">' + esc(dest.rm) + '</span>' +
             '</th>' +
             buildCells(dest, null, 'row-dest', false) +
           '</tr>';
-        if (!destOpen) return;
-        dest.tickets.forEach(ticket => {
-          html +=
-            '<tr class="row-leaf" data-dest="' + dest.id + '" data-ticket="' + ticket.id + '">' +
-              '<th class="cal-route">' +
-                '<span class="leaf-bullet" aria-hidden="true">•</span>' +
-                '<span class="lvl-gw-name">' + esc(ticket.label) + '</span>' +
-              '</th>' +
-              buildCells(dest, ticket, 'row-leaf', false) +
-            '</tr>';
-        });
       });
       return html;
     }).join('');
@@ -5856,18 +5959,15 @@
     if (e.target.closest('[data-toggle]')) return;     // chevron handler runs first
     const cell = e.target.closest('td[data-row]');
     if (!cell) return;
-    if (calMode !== 'daily') { openDetail(cell.dataset.scope, cell.dataset.period); return; }
+    // Open the same detail modal the Pricing table uses, scoped to the period
+    // that was clicked — daily gives one departure date, monthly the month.
+    const periodKey = cell.dataset.period;
     const level = cell.dataset.level;
-    const dateIso = cell.dataset.period;
-    if (level === 'region') {
-      openModal({ level: 'region', regionId: cell.dataset.scope, dateIso });
-    } else if (level === 'dest') {
-      openModal({ level: 'dest', destId: cell.dataset.scope, dateIso });
-    } else {
+    if (level === 'region') openModal({ level: 'region', regionId: cell.dataset.scope, periodKey });
+    else if (level === 'dest') openModal({ level: 'dest', destId: cell.dataset.scope, periodKey });
+    else {
       const dest = PARKS.find(p => p.id === cell.dataset.scope);
-      const tk = dest && dest.tickets.find(t => t.id === cell.dataset.ticket);
-      const date = DATES.find(d => d.iso === dateIso);
-      if (dest && tk && date) openModal({ level: 'leaf', key: stateKey(dest, tk, date) });
+      if (dest) openModal({ level: 'dest', destId: dest.id, periodKey });
     }
   });
 
@@ -6319,13 +6419,13 @@
   //  applyFilters — single source of truth that re-renders both views
   // ─────────────────────────────────────────────────────────────
   function applyFilters() {
-    ['region', 'country', 'park', 'ticket', 'lead', 'daytype', 'alert', 'rec', 'action'].forEach(updateMsTrigger);
+    ['rm', 'region', 'country', 'park', 'lead', 'daytype', 'alert', 'rec', 'action'].forEach(updateMsTrigger);
     updateDateTrigger();
     const anyActive =
       filters.region.length  > 0 ||
       filters.country.length > 0 ||
       filters.park.length    > 0 ||
-      filters.ticket.length  > 0 ||
+      filters.rm.length      > 0 ||
       filters.lead.length    > 0 ||
       filters.daytype.length > 0 ||
       filters.alert.length   > 0 ||
@@ -6350,7 +6450,7 @@
     filters.region = [];
     filters.country = [];
     filters.park = [];
-    filters.ticket = [];
+    filters.rm = [];
     filters.lead = [];
     filters.daytype = [];
     filters.alert = [];
@@ -6376,7 +6476,7 @@
     // Price move (GBP pp) converted to a margin at this product's blended cost.
     const pr = productFromKey(key);
     if (!pr) return cur;
-    const agg = aggregate(productLeaves(pr.dest, pr.gw));
+    const agg = aggregate(productLeaves(pr.dest, pr.band));
     const newPrice = Math.max(agg.cost + 5, agg.price + v);
     return Math.max(2, Math.min(72, Math.round(((newPrice - agg.cost) / newPrice) * 1000) / 10));
   }
@@ -6484,16 +6584,16 @@
     if (!products.length) return null;
     const pr = products[0];
     const leaves = [];
-    products.forEach(x => leaves.push(...productLeaves(x.dest, x.gw)));
+    products.forEach(x => leaves.push(...productLeaves(x.dest, x.band)));
     if (!leaves.length) return null;
     const agg = aggregate(leaves);
     const m = aggregateModalData(leaves);
-    const recM = scopeAvg(products, (d, g, b) => productRecMargin(d, g, b));
+    const recM = scopeAvg(products, (d, b) => productRecMargin(d, b));
     return {
       key: scopeId,
       scopeName: scopeLabel(scopeId),
       products: products.length,
-      region: pr.dest.region, park: pr.dest, ticket: pr.gw,
+      region: pr.dest.region, park: pr.dest, band: pr.band,
       pickup: agg.ros,
       sessions: agg.sessions,
       conversion: agg.conversion,
@@ -6516,7 +6616,7 @@
   // ── The context summary the assistant pushes when a row opens ──
   function buildContextMessage(ctx) {
     const alertList = ctx.alertLabels.length ? ctx.alertLabels.join(', ') : 'none';
-    return "Here's the margin position for " + ctx.park.name + " — " + ctx.ticket.label +
+    return "Here's the margin position for " + ctx.park.name + " — " + leadBand(ctx.band).label +
       " across " + ctx.departures + " departures:\n" +
       "• Package margin: " + ctx.marginPct.toFixed(1) + "% (" + fmtGbpK(ctx.marginGbp) + " banked)\n" +
       "• Recommended: " + ctx.recMarginPct.toFixed(1) + "% (" + (ctx.deltaPpt > 0 ? '+' : '') + ctx.deltaPpt + "ppt)\n" +

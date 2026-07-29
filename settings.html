@@ -186,12 +186,12 @@
     // ── Alerts config (matches dynamica.smartrates.alerts in index.html) ──
     const ALERTS_KEY = 'dynamica.smartrates.alerts';
     const ALERT_TYPES = [
-      { id: 'lowPace',     label: 'Low pace',           desc: 'Booking pace vs historic falls below threshold',        color: '#ea580c', defaultThreshold: -15, thresholdMin: -60, thresholdMax:  0,  hasThreshold: true, unit: '%' },
-      { id: 'marginFloor', label: 'Margin below floor', desc: 'Package margin falls below the floor',                  color: '#dc2626', defaultThreshold:  22, thresholdMin:   0, thresholdMax: 60,  hasThreshold: true, unit: '%' },
-      { id: 'highDemand',  label: 'High demand',        desc: 'Observed demand level exceeds threshold',               color: '#2563eb', defaultThreshold:  80, thresholdMin:   0, thresholdMax: 100, hasThreshold: true, unit: '' },
-      { id: 'lowDemand',   label: 'Low demand',         desc: 'Observed demand level falls below threshold',           color: '#94a3b8', defaultThreshold:  25, thresholdMin:   0, thresholdMax: 100, hasThreshold: true, unit: '' },
-      { id: 'conversion',  label: 'Conversion drop',    desc: 'Web sessions converting below threshold',               color: '#a855f7', defaultThreshold: 2.6, thresholdMin:   0, thresholdMax: 15,  hasThreshold: true, unit: '%' },
-      { id: 'outOfLine',   label: 'Out-of-line move',   desc: 'Gateway margin move exceeds 3x its destination median', color: '#f59e0b', hasThreshold: false },
+      { id: 'lowPace',     label: 'Low pace',           desc: 'Booking pace vs historic falls below threshold',        color: '#ea580c', defaultThreshold: -25, thresholdMin: -60, thresholdMax:  0,  hasThreshold: true, unit: '%' },
+      { id: 'marginFloor', label: 'Margin below floor', desc: 'Package margin falls below the floor',                  color: '#dc2626', defaultThreshold:   7, thresholdMin:   0, thresholdMax: 60,  hasThreshold: true, unit: '%' },
+      { id: 'highDemand',  label: 'High demand',        desc: 'Observed demand level exceeds threshold',               color: '#2563eb', defaultThreshold:  90, thresholdMin:   0, thresholdMax: 100, hasThreshold: true, unit: '' },
+      { id: 'lowDemand',   label: 'Low demand',         desc: 'Observed demand level falls below threshold',           color: '#94a3b8', defaultThreshold:  14, thresholdMin:   0, thresholdMax: 100, hasThreshold: true, unit: '' },
+      { id: 'conversion',  label: 'Conversion drop',    desc: 'Web sessions converting below threshold',               color: '#a855f7', defaultThreshold: 2.2, thresholdMin:   0, thresholdMax: 15,  hasThreshold: true, unit: '%' },
+      { id: 'outOfLine',   label: 'Out-of-line move',   desc: 'Margin move exceeds 3x its destination median', color: '#f59e0b', hasThreshold: false },
     ];
 
     function alertsDefault() {
